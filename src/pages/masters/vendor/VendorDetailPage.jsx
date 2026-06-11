@@ -14,7 +14,7 @@ const VendorDetailPage = () => {
 
   useEffect(() => {
     vendorApi.getVendorById(id)
-      .then(r => setVendor(r.data))
+      .then(r => setVendor(r.data?.data))
       .catch(() => message.error('Failed to load vendor'))
       .finally(() => setLoading(false))
   }, [id])
@@ -27,16 +27,16 @@ const VendorDetailPage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/vendors')} />
-          <Title level={4} style={{ margin: 0 }}>{vendor.vendor_name}</Title>
-          <Tag color={vendor.is_active ? 'green' : 'default'}>{vendor.is_active ? 'Active' : 'Inactive'}</Tag>
+          <Title level={4} style={{ margin: 0 }}>{vendor.vendorName}</Title>
+          <Tag color={vendor.isActive ? 'green' : 'default'}>{vendor.isActive ? 'Active' : 'Inactive'}</Tag>
         </Space>
         <Button icon={<EditOutlined />} onClick={() => navigate(`/vendors/${id}/edit`)}>Edit</Button>
       </div>
 
       <Card title="Basic Information" style={{ marginBottom: 16 }}>
         <Descriptions bordered column={2} size="middle">
-          <Descriptions.Item label="Vendor Name">{vendor.vendor_name}</Descriptions.Item>
-          <Descriptions.Item label="Contact Person">{vendor.contact_person || '-'}</Descriptions.Item>
+          <Descriptions.Item label="Vendor Name">{vendor.vendorName}</Descriptions.Item>
+          <Descriptions.Item label="Contact Person">{vendor.contactPerson || '-'}</Descriptions.Item>
           <Descriptions.Item label="Mobile">{vendor.mobile || '-'}</Descriptions.Item>
           <Descriptions.Item label="Email">{vendor.email || '-'}</Descriptions.Item>
         </Descriptions>
@@ -47,18 +47,18 @@ const VendorDetailPage = () => {
           <Descriptions.Item label="Address" span={2}>{vendor.address || '-'}</Descriptions.Item>
           <Descriptions.Item label="City">{vendor.city || '-'}</Descriptions.Item>
           <Descriptions.Item label="State">{vendor.state || '-'}</Descriptions.Item>
-          <Descriptions.Item label="PIN Code">{vendor.pin_code || '-'}</Descriptions.Item>
-          <Descriptions.Item label="State Code">{vendor.state_code || '-'}</Descriptions.Item>
+          <Descriptions.Item label="PIN Code">{vendor.pinCode || '-'}</Descriptions.Item>
+          <Descriptions.Item label="State Code">{vendor.stateCode || '-'}</Descriptions.Item>
         </Descriptions>
       </Card>
 
       <Card title="Tax & Banking" style={{ marginBottom: 16 }}>
         <Descriptions bordered column={2} size="middle">
-          <Descriptions.Item label="PAN Number">{vendor.pan_number || '-'}</Descriptions.Item>
-          <Descriptions.Item label="GST Number">{vendor.gst_number || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Bank Name">{vendor.bank_name || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Account Number">{vendor.account_number || '-'}</Descriptions.Item>
-          <Descriptions.Item label="IFSC Code">{vendor.ifsc_code || '-'}</Descriptions.Item>
+          <Descriptions.Item label="PAN Number">{vendor.panNumber || '-'}</Descriptions.Item>
+          <Descriptions.Item label="GST Number">{vendor.gstNumber || '-'}</Descriptions.Item>
+          <Descriptions.Item label="Bank Name">{vendor.bankName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="Account Number">{vendor.accountNumber || '-'}</Descriptions.Item>
+          <Descriptions.Item label="IFSC Code">{vendor.ifscCode || '-'}</Descriptions.Item>
         </Descriptions>
       </Card>
 
@@ -70,14 +70,14 @@ const VendorDetailPage = () => {
               <List.Item
                 actions={[
                   <Button key="dl" size="small" icon={<DownloadOutlined />}
-                    href={doc.file_path} target="_blank">
+                    href={doc.fileUrl} target="_blank">
                     Download
                   </Button>
                 ]}
               >
                 <List.Item.Meta
-                  title={doc.file_name}
-                  description={`${doc.doc_type} • ${doc.content_type}`}
+                  title={doc.fileName}
+                  description={`${doc.docType} • ${doc.contentType}`}
                 />
               </List.Item>
             )}

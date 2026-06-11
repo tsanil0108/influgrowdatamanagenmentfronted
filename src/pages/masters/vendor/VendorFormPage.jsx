@@ -1,9 +1,7 @@
 import React, { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useForm, Controller } from 'react-hook-form'
-import { Button, Card, Col, Form, Row, Space, Select, message, Divider } from 'antd'
+import { Button, Card, Col, Form, Input, Row, Space, Select, message } from 'antd'
 import PageHeader from '../../../components/common/PageHeader'
-import FormInput from '../../../components/common/FormInput'
 import { vendorApi } from '../../../api/vendorApi'
 import { INDIA_STATES } from '../../../utils/constants'
 
@@ -13,27 +11,39 @@ const VendorFormPage = () => {
   const navigate = useNavigate()
   const { id } = useParams()
   const isEdit = Boolean(id)
-
-  const { register, control, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm({
-    defaultValues: { is_active: true }
-  })
+  const [form] = Form.useForm()
 
   useEffect(() => {
     if (isEdit) {
       vendorApi.getVendorById(id).then(r => {
-        const v = r.data
-        Object.keys(v).forEach(k => setValue(k, v[k]))
-      })
+        form.setFieldsValue(r.data?.data)
+      }).catch(() => message.error('Failed to load vendor'))
     }
   }, [id])
 
-  const onSubmit = async (data) => {
+  const onFinish = async (values) => {
+    const payload = {
+      vendorName:    values.vendor_name,
+      contactPerson: values.contact_person,
+      mobile:        values.mobile,
+      email:         values.email,
+      address:       values.address,
+      city:          values.city,
+      state:         values.state,
+      pinCode:       values.pin_code,
+      panNumber:     values.pan_number,
+      gstNumber:     values.gst_number,
+      bankName:      values.bank_name,
+      accountNumber: values.account_number,
+      ifscCode:      values.ifsc_code,
+      isActive:      true,
+    }
     try {
       if (isEdit) {
-        await vendorApi.updateVendor(id, data)
+        await vendorApi.updateVendor(id, payload)
         message.success('Vendor updated')
       } else {
-        await vendorApi.createVendor(data)
+        await vendorApi.createVendor(payload)
         message.success('Vendor added')
       }
       navigate('/vendors')
@@ -45,63 +55,56 @@ const VendorFormPage = () => {
   return (
     <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
       <PageHeader title={isEdit ? 'Edit Vendor' : 'Add Vendor'} onBack={() => navigate('/vendors')} />
-      <Form layout="vertical" onFinish={handleSubmit(onSubmit)}>
+      <Form form={form} layout="vertical" onFinish={onFinish}>
+
         <Card title="Basic Information" style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
-              <FormInput name="vendor_name" label="Vendor Name"
-                register={register('vendor_name', { required: 'Vendor name is required' })}
-                error={errors.vendor_name} required />
+              <Form.Item name="vendor_name" label="Vendor Name" rules={[{ required: true, message: 'Vendor name is required' }]}>
+                <Input placeholder="Vendor Name" />
+              </Form.Item>
             </Col>
             <Col span={12}>
-              <FormInput name="contact_person" label="Contact Person"
-                register={register('contact_person')} error={errors.contact_person} />
+              <Form.Item name="contact_person" label="Contact Person">
+                <Input placeholder="Contact Person" />
+              </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <FormInput name="mobile" label="Mobile"
-                register={register('mobile', {
-                  pattern: { value: /^[6-9]\d{9}$/, message: 'Invalid mobile number' }
-                })}
-                error={errors.mobile} placeholder="10-digit mobile" maxLength={10} />
+              <Form.Item name="mobile" label="Mobile" rules={[{ pattern: /^[6-9]\d{9}$/, message: 'Invalid mobile number' }]}>
+                <Input placeholder="10-digit mobile" maxLength={10} />
+              </Form.Item>
             </Col>
             <Col span={12}>
-              <FormInput name="email" label="Email"
-                register={register('email', {
-                  pattern: { value: /^\S+@\S+\.\S+$/, message: 'Invalid email' }
-                })}
-                error={errors.email} type="email" />
+              <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Invalid email' }]}>
+                <Input placeholder="email@example.com" />
+              </Form.Item>
             </Col>
           </Row>
         </Card>
 
         <Card title="Address" style={{ marginBottom: 16 }}>
-          <FormInput name="address" label="Address"
-            register={register('address')} error={errors.address} />
+          <Form.Item name="address" label="Address">
+            <Input.TextArea rows={2} placeholder="Full address" />
+          </Form.Item>
           <Row gutter={16}>
             <Col span={8}>
-              <FormInput name="city" label="City" register={register('city')} error={errors.city} />
-            </Col>
-            <Col span={8}>
-              <Form.Item label="State">
-                <Controller
-                  name="state"
-                  control={control}
-                  render={({ field }) => (
-                    <Select {...field} showSearch optionFilterProp="children" placeholder="Select state" allowClear>
-                      {INDIA_STATES.map(s => <Option key={s.code} value={s.name}>{s.name}</Option>)}
-                    </Select>
-                  )}
-                />
+              <Form.Item name="city" label="City">
+                <Input placeholder="City" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <FormInput name="pin_code" label="PIN Code"
-                register={register('pin_code', {
-                  pattern: { value: /^\d{6}$/, message: 'Must be 6 digits' }
-                })}
-                error={errors.pin_code} maxLength={6} />
+              <Form.Item name="state" label="State">
+                <Select showSearch optionFilterProp="children" placeholder="Select state" allowClear>
+                  {INDIA_STATES.map(s => <Option key={s.code} value={s.name}>{s.name}</Option>)}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="pin_code" label="PIN Code" rules={[{ pattern: /^\d{6}$/, message: 'Must be 6 digits' }]}>
+                <Input placeholder="400001" maxLength={6} />
+              </Form.Item>
             </Col>
           </Row>
         </Card>
@@ -109,18 +112,14 @@ const VendorFormPage = () => {
         <Card title="Tax Information" style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
-              <FormInput name="pan_number" label="PAN Number"
-                register={register('pan_number', {
-                  pattern: { value: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, message: 'Invalid PAN format' }
-                })}
-                error={errors.pan_number} maxLength={10} placeholder="ABCDE1234F" />
+              <Form.Item name="pan_number" label="PAN Number" rules={[{ pattern: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, message: 'Invalid PAN format' }]}>
+                <Input placeholder="ABCDE1234F" maxLength={10} style={{ textTransform: 'uppercase' }} />
+              </Form.Item>
             </Col>
             <Col span={12}>
-              <FormInput name="gst_number" label="GST Number"
-                register={register('gst_number', {
-                  pattern: { value: /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, message: 'Invalid GST format' }
-                })}
-                error={errors.gst_number} maxLength={15} placeholder="27ABCDE1234F1Z5" />
+              <Form.Item name="gst_number" label="GST Number" rules={[{ pattern: /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, message: 'Invalid GST format' }]}>
+                <Input placeholder="27ABCDE1234F1Z5" maxLength={15} style={{ textTransform: 'uppercase' }} />
+              </Form.Item>
             </Col>
           </Row>
         </Card>
@@ -128,27 +127,27 @@ const VendorFormPage = () => {
         <Card title="Bank Details" style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
-              <FormInput name="bank_name" label="Bank Name"
-                register={register('bank_name')} error={errors.bank_name} />
+              <Form.Item name="bank_name" label="Bank Name">
+                <Input placeholder="Bank Name" />
+              </Form.Item>
             </Col>
             <Col span={12}>
-              <FormInput name="account_number" label="Account Number"
-                register={register('account_number')} error={errors.account_number} />
+              <Form.Item name="account_number" label="Account Number">
+                <Input placeholder="Account Number" />
+              </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <FormInput name="ifsc_code" label="IFSC Code"
-                register={register('ifsc_code', {
-                  pattern: { value: /^[A-Z]{4}0[A-Z0-9]{6}$/, message: 'Invalid IFSC' }
-                })}
-                error={errors.ifsc_code} maxLength={11} placeholder="HDFC0001234" />
+              <Form.Item name="ifsc_code" label="IFSC Code" rules={[{ pattern: /^[A-Z]{4}0[A-Z0-9]{6}$/, message: 'Invalid IFSC' }]}>
+                <Input placeholder="HDFC0001234" maxLength={11} />
+              </Form.Item>
             </Col>
           </Row>
         </Card>
 
         <Space>
-          <Button type="primary" htmlType="submit" loading={isSubmitting}>
+          <Button type="primary" htmlType="submit">
             {isEdit ? 'Update Vendor' : 'Add Vendor'}
           </Button>
           <Button onClick={() => navigate('/vendors')}>Cancel</Button>

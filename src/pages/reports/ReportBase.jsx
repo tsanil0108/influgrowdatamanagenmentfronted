@@ -35,13 +35,37 @@ export const formatINR = (amount) => {
     })}`
 }
 
+// Transform backend columnar response → array of objects
+const transformResponse = (payload) => {
+    if (Array.isArray(payload)) return payload
+
+    if (payload?.columns && Array.isArray(payload.rows)) {
+        return payload.rows.map((row) => {
+            const obj = { _key: Math.random() }
+            payload.columns.forEach((col, i) => {
+                const key = col
+                    .toLowerCase()
+                    .trim()
+                    .replace(/\s+/g, '_')
+                    .replace(/[^a-z0-9_]/g, '')
+                obj[key] = row[i] ?? '-'
+            })
+            return obj
+        })
+    }
+
+    return []
+}
+
 export const ReportPage = ({
     title,
     columns,
     reportName,
     searchKeys = [],
+    extraParams = {},
 }) => {
     const [loading, setLoading] = useState(false)
+    const [exporting, setExporting] = useState(false)
     const [data, setData] = useState([])
     const [search, setSearch] = useState('')
     const [dateRange, setDateRange] = useState(null)
@@ -50,29 +74,18 @@ export const ReportPage = ({
         try {
             setLoading(true)
 
-            const params = {}
-
-            if (search) {
-                params.search = search
-            }
+            const params = { ...extraParams }
 
             if (dateRange?.length === 2) {
-                params.fromDate = dateRange[0].format('DD/MM/YYYY')
-                params.toDate = dateRange[1].format('DD/MM/YYYY')
+                params.startDate = dateRange[0].format('YYYY-MM-DD')
+                params.endDate   = dateRange[1].format('YYYY-MM-DD')
             }
 
-            const res = await reportApi.getReport(
-                reportName,
-                params
-            )
-
-            setData(
-                res?.data?.data ||
-                res?.data ||
-                []
-            )
+            const res = await reportApi.getReport(reportName, params)
+            const raw = res?.data?.data ?? res?.data ?? []
+            setData(transformResponse(raw))
         } catch (err) {
-            console.error(err)
+            console.error('Report load error:', err)
             message.error('Failed to load report')
         } finally {
             setLoading(false)
@@ -81,35 +94,51 @@ export const ReportPage = ({
 
     useEffect(() => {
         loadData()
-    }, [])
+    }, [reportName])
 
+    // ✅ Fixed export — proper blob download
     const exportExcel = async () => {
         try {
-            const res =
-                await reportApi.exportExcel(
-                    reportName
-                )
+            setExporting(true)
 
-            window.open(
-                res.data.downloadUrl,
-                '_blank'
-            )
-        } catch {
+            const params = { ...extraParams }
+            if (dateRange?.length === 2) {
+                params.startDate = dateRange[0].format('YYYY-MM-DD')
+                params.endDate   = dateRange[1].format('YYYY-MM-DD')
+            }
+
+            const res = await reportApi.exportExcel(reportName, params)
+
+            // Create blob URL and trigger download
+            const blob = new Blob([res.data], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            })
+            const url  = window.URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href  = url
+            link.setAttribute('download', `${reportName}.xlsx`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+
+            message.success('Export successful!')
+        } catch (err) {
+            console.error('Export error:', err)
             message.error('Export failed')
+        } finally {
+            setExporting(false)
         }
     }
 
-    const filteredData = data.filter(
-        item => {
-            if (!search) return true
-
-            return searchKeys.some(key =>
-                String(item[key] || '')
-                    .toLowerCase()
-                    .includes(search.toLowerCase())
-            )
-        }
-    )
+    const filteredData = data.filter((item) => {
+        if (!search) return true
+        return searchKeys.some((key) =>
+            String(item[key] || '')
+                .toLowerCase()
+                .includes(search.toLowerCase())
+        )
+    })
 
     return (
         <div style={{ padding: 24 }}>
@@ -120,22 +149,18 @@ export const ReportPage = ({
                     style={{ marginBottom: 20 }}
                 >
                     <Col>
-                        <Title level={4}>
-                            {title}
-                        </Title>
+                        <Title level={4}>{title}</Title>
                     </Col>
 
                     <Col>
-                        <Space>
+                        <Space wrap>
                             <Input
                                 allowClear
-                                style={{ width: 250 }}
+                                style={{ width: 220 }}
                                 placeholder="Search..."
                                 prefix={<SearchOutlined />}
                                 value={search}
-                                onChange={e =>
-                                    setSearch(e.target.value)
-                                }
+                                onChange={(e) => setSearch(e.target.value)}
                             />
 
                             <RangePicker
@@ -147,6 +172,7 @@ export const ReportPage = ({
                             <Button
                                 icon={<ReloadOutlined />}
                                 onClick={loadData}
+                                loading={loading}
                             >
                                 Refresh
                             </Button>
@@ -155,6 +181,7 @@ export const ReportPage = ({
                                 type="primary"
                                 icon={<DownloadOutlined />}
                                 onClick={exportExcel}
+                                loading={exporting}   // ✅ loading state on export button
                             >
                                 Export
                             </Button>
@@ -163,14 +190,15 @@ export const ReportPage = ({
                 </Row>
 
                 <Table
-                    rowKey={(r, i) => r.id || i}
+                    rowKey={(r, i) => r.id ?? r._key ?? i}
                     columns={columns}
                     dataSource={filteredData}
                     loading={loading}
-                    scroll={{ x: 1500 }}
+                    scroll={{ x: 'max-content' }}
                     pagination={{
                         pageSize: 20,
                         showSizeChanger: true,
+                        showTotal: (total) => `Total ${total} records`,
                     }}
                 />
             </Card>

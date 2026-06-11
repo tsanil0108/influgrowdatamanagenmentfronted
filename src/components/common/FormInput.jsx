@@ -1,35 +1,6 @@
 import React from 'react'
 import { Form, Input } from 'antd'
 
-/**
- * FormInput — Label + Input + validation error message wrapper
- *
- * Props (all React Hook Form compatible):
- *  name        - Field name
- *  label       - Display label
- *  register    - RHF register function (spread onto input)
- *  error       - RHF error object for this field (e.g. errors.fieldName)
- *  required    - Show asterisk
- *  placeholder
- *  disabled
- *  type        - input type (text, email, number, etc.)
- *  maxLength
- *  prefix      - Ant Design Input prefix (icon/text)
- *  suffix
- *  style       - Style override for Form.Item
- *  inputStyle  - Style override for Input
- *  helpText    - Additional help text below field
- *
- * Usage with React Hook Form:
- *   <FormInput
- *     name="pan_number"
- *     label="PAN Number"
- *     register={register('pan_number', { required: 'PAN is required' })}
- *     error={errors.pan_number}
- *     placeholder="ABCDE1234F"
- *     maxLength={10}
- *   />
- */
 const FormInput = ({
   name,
   label,
@@ -60,7 +31,7 @@ const FormInput = ({
         id={name || fieldName}
         ref={ref}
         name={fieldName || name}
-        onChange={onChange}
+        onChange={(e) => onChange?.({ target: { name: fieldName || name, value: e.target.value } })}
         onBlur={onBlur}
         type={type}
         placeholder={placeholder}

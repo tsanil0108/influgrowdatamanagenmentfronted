@@ -18,8 +18,9 @@ export function useClients() {
     setDetailLoading(true)
     try {
       const res = await getClientById(id)
-      setDetail(res.data)
-      return res.data
+      const data = res.data?.data   // unwrap ApiResponse
+      setDetail(data)
+      return data
     } catch (err) {
       message.error('Failed to load client')
     } finally {
@@ -38,7 +39,9 @@ export function useClients() {
       }
       return true
     } catch (err) {
-      message.error(err.response?.data?.message || 'Failed to save client')
+      message.error(err.response?.data?.data?.message
+                 || err.response?.data?.message
+                 || 'Failed to save client')
       return false
     }
   }

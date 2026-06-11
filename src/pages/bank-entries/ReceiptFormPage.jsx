@@ -1,7 +1,8 @@
+// src/pages/bank-entries/ReceiptFormPage.jsx
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
-import { Form, Button, Select, DatePicker, InputNumber, Input, Switch, Card, Row, Col, Space, message } from 'antd'
+import { Form, Button, DatePicker, InputNumber, Input, Switch, Card, Row, Col, Space, message } from 'antd'
 import dayjs from 'dayjs'
 import PageHeader from '../../components/common/PageHeader'
 import FormSelect from '../../components/common/FormSelect'
@@ -10,34 +11,43 @@ import { clientApi } from '../../api/clientApi'
 import { invoiceApi } from '../../api/invoiceApi'
 import { bankApi } from '../../api/bankApi'
 
-const { Option } = Select
-
 const ReceiptFormPage = () => {
   const navigate = useNavigate()
   const { control, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm({
-    defaultValues: { entry_date: dayjs(), is_on_account: false }
+    defaultValues: { entryDate: dayjs(), isOnAccount: false }
   })
 
-  const [clients, setClients] = useState([])
+  const [clients,  setClients]  = useState([])
   const [invoices, setInvoices] = useState([])
-  const [banks, setBanks] = useState([])
+  const [banks,    setBanks]    = useState([])
   const [loadingInvoices, setLoadingInvoices] = useState(false)
 
-  const selectedClientId = watch('client_id')
-  const isOnAccount = watch('is_on_account')
+  const selectedClientId = watch('clientId')
+  const isOnAccount      = watch('isOnAccount')
 
   useEffect(() => {
-    clientApi.getClients().then(r => setClients(r.data || []))
-    bankApi.getBanks().then(r => setBanks(r.data || []))
+    // Clients: { success, message, data: { content: [...] } }
+    clientApi.getClients({ page: 0, size: 1000 }).then(r => {
+      const list = r.data?.data?.content ?? r.data?.data ?? []
+      setClients(Array.isArray(list) ? list : [])
+    })
+    // Banks: { success, message, data: [...] }
+    bankApi.getBanks().then(r => {
+      const list = r.data?.data
+      setBanks(Array.isArray(list) ? list : [])
+    })
   }, [])
 
   useEffect(() => {
     if (selectedClientId) {
       setLoadingInvoices(true)
-      invoiceApi.getInvoices({ client_id: selectedClientId, status: 'UNPAID,PARTIAL' })
-        .then(r => setInvoices(r.data || []))
+      invoiceApi.getInvoices({ clientId: selectedClientId, status: 'UNPAID,PARTIAL', page: 0, size: 1000 })
+        .then(r => {
+          const list = r.data?.data?.content ?? r.data?.data ?? []
+          setInvoices(Array.isArray(list) ? list : [])
+        })
         .finally(() => setLoadingInvoices(false))
-      setValue('invoice_id', null)
+      setValue('invoiceId', null)
     } else {
       setInvoices([])
     }
@@ -46,9 +56,13 @@ const ReceiptFormPage = () => {
   const onSubmit = async (data) => {
     try {
       const payload = {
-        ...data,
-        entry_type: 'RECEIPT',
-        entry_date: data.entry_date?.format('YYYY-MM-DD'),
+        entryDate:   data.entryDate?.format('YYYY-MM-DD'),
+        amount:      data.amount,
+        bankId:      data.bankId,
+        clientId:    data.clientId,
+        invoiceId:   data.isOnAccount ? null : data.invoiceId,
+        isOnAccount: data.isOnAccount,
+        remarks:     data.remarks,
       }
       await bankEntryApi.createReceipt(payload)
       message.success('Receipt entry created')
@@ -59,29 +73,22 @@ const ReceiptFormPage = () => {
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 800, margin: '0 auto' }}>
+    <div>
       <PageHeader title="New Receipt Entry" onBack={() => navigate('/bank-entries')} />
-      <Card>
+      <Card style={{ maxWidth: 800, margin: '0 auto' }}>
         <Form layout="vertical" onFinish={handleSubmit(onSubmit)}>
           <Row gutter={16}>
             <Col span={12}>
               <FormSelect
-                name="client_id"
-                label="Client"
-                control={control}
-                error={errors.client_id}
-                options={clients.map(c => ({ value: c.id, label: c.client_name }))}
-                required
-                showSearch
+                name="clientId" label="Client" control={control} error={errors.clientId}
+                options={clients.map(c => ({ value: c.id, label: c.clientName }))}
+                required showSearch
               />
             </Col>
             <Col span={12}>
               <FormSelect
-                name="bank_id"
-                label="Receiving Bank"
-                control={control}
-                error={errors.bank_id}
-                options={banks.map(b => ({ value: b.id, label: `${b.bank_name} - ${b.account_number}` }))}
+                name="bankId" label="Receiving Bank" control={control} error={errors.bankId}
+                options={banks.map(b => ({ value: b.id, label: `${b.bankName} - ${b.accountNumber}` }))}
                 required
               />
             </Col>
@@ -90,30 +97,23 @@ const ReceiptFormPage = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="Entry Date" required>
-                <Controller
-                  name="entry_date"
-                  control={control}
+                <Controller name="entryDate" control={control}
                   rules={{ required: 'Date is required' }}
                   render={({ field }) => (
                     <DatePicker {...field} format="DD/MM/YYYY" style={{ width: '100%' }} />
-                  )}
-                />
+                  )} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item label="Amount (₹)" required
-                validateStatus={errors.amount ? 'error' : ''}
-                help={errors.amount?.message}>
-                <Controller
-                  name="amount"
-                  control={control}
+                validateStatus={errors.amount ? 'error' : ''} help={errors.amount?.message}>
+                <Controller name="amount" control={control}
                   rules={{ required: 'Amount is required', min: { value: 1, message: 'Must be > 0' } }}
                   render={({ field }) => (
                     <InputNumber {...field} min={0} precision={2} style={{ width: '100%' }}
                       formatter={v => `₹ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                       parser={v => v.replace(/₹\s?|(,*)/g, '')} />
-                  )}
-                />
+                  )} />
               </Form.Item>
             </Col>
           </Row>
@@ -121,39 +121,30 @@ const ReceiptFormPage = () => {
           <Row gutter={16} align="middle">
             <Col span={12}>
               <Form.Item label="On-Account (no specific invoice)">
-                <Controller
-                  name="is_on_account"
-                  control={control}
+                <Controller name="isOnAccount" control={control}
                   render={({ field }) => (
                     <Switch checked={field.value} onChange={field.onChange} />
-                  )}
-                />
+                  )} />
               </Form.Item>
             </Col>
             {!isOnAccount && (
               <Col span={12}>
                 <FormSelect
-                  name="invoice_id"
-                  label="Link to Invoice"
-                  control={control}
-                  error={errors.invoice_id}
+                  name="invoiceId" label="Link to Invoice"
+                  control={control} error={errors.invoiceId}
                   options={invoices.map(i => ({
                     value: i.id,
-                    label: `${i.invoice_number} — ₹${Number(i.total_amount).toLocaleString('en-IN')} (${i.status})`
+                    label: `${i.invoiceNumber} — ₹${Number(i.totalAmount).toLocaleString('en-IN')} (${i.status})`
                   }))}
-                  loading={loadingInvoices}
-                  placeholder="Select invoice"
+                  loading={loadingInvoices} placeholder="Select invoice"
                 />
               </Col>
             )}
           </Row>
 
           <Form.Item label="Remarks">
-            <Controller
-              name="remarks"
-              control={control}
-              render={({ field }) => <Input.TextArea {...field} rows={2} />}
-            />
+            <Controller name="remarks" control={control}
+              render={({ field }) => <Input.TextArea {...field} rows={2} />} />
           </Form.Item>
 
           <Space>

@@ -11,7 +11,7 @@ import { PAGE_SIZE } from '../../../utils/constants'
 
 export default function ClientListPage() {
   const navigate = useNavigate()
-  const { list, total, loading, loadClients, removeClient } = useClients()
+  const { list, loading, loadClients, removeClient } = useClients()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
 
@@ -46,7 +46,7 @@ export default function ClientListPage() {
       title: 'Status',
       dataIndex: 'isActive',
       key: 'status',
-      render: (v) => <StatusBadge status={v ? 'APPROVED' : 'CANCELLED'} />,
+      render: v => <StatusBadge status={v ? 'APPROVED' : 'CANCELLED'} />,
     },
     {
       title: 'Actions',
@@ -54,9 +54,15 @@ export default function ClientListPage() {
       width: 120,
       render: (_, row) => (
         <Space size={4}>
-          <Tooltip title="View"><Button type="text" icon={<EyeOutlined />} onClick={() => navigate(`/clients/${row.id}`)} /></Tooltip>
-          <Tooltip title="Edit"><Button type="text" icon={<EditOutlined />} onClick={() => navigate(`/clients/${row.id}/edit`)} /></Tooltip>
-          <Tooltip title="Delete"><Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleDelete(row.id, row.clientName)} /></Tooltip>
+          <Tooltip title="View">
+            <Button type="text" icon={<EyeOutlined />} onClick={() => navigate(`/clients/${row.id}`)} />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button type="text" icon={<EditOutlined />} onClick={() => navigate(`/clients/${row.id}/edit`)} />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleDelete(row.id, row.clientName)} />
+          </Tooltip>
         </Space>
       ),
     },
@@ -76,18 +82,16 @@ export default function ClientListPage() {
             prefix={<SearchOutlined style={{ color: 'var(--color-text-muted)' }} />}
             placeholder="Search by name, city, GST..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
             style={{ width: 300 }}
             allowClear
           />
         </div>
         <DataTable
           columns={columns}
-          dataSource={list}
+          data={list}
           loading={loading}
-          total={total}
-          page={page}
-          onPageChange={setPage}
+          pageSize={PAGE_SIZE}
         />
       </Card>
     </div>

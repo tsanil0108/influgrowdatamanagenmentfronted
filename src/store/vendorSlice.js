@@ -4,7 +4,10 @@ import { getVendors } from '../api/vendorApi'
 export const fetchVendors = createAsyncThunk('vendors/fetchAll', async (params, { rejectWithValue }) => {
   try {
     const res = await getVendors(params)
-    return res.data
+    return {
+      content: res.data?.data?.content ?? res.data?.data ?? [],
+      totalElements: res.data?.data?.totalElements ?? 0,
+    }
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || 'Failed to fetch vendors')
   }
@@ -12,12 +15,7 @@ export const fetchVendors = createAsyncThunk('vendors/fetchAll', async (params, 
 
 const vendorSlice = createSlice({
   name: 'vendors',
-  initialState: {
-    list: [],
-    total: 0,
-    loading: false,
-    error: null,
-  },
+  initialState: { list: [], total: 0, loading: false, error: null },
   reducers: {
     clearVendorError(state) { state.error = null },
   },
@@ -26,8 +24,8 @@ const vendorSlice = createSlice({
       .addCase(fetchVendors.pending, (state) => { state.loading = true; state.error = null })
       .addCase(fetchVendors.fulfilled, (state, action) => {
         state.loading = false
-        state.list = action.payload.content || action.payload
-        state.total = action.payload.totalElements || action.payload.length || 0
+        state.list = action.payload.content
+        state.total = action.payload.totalElements
       })
       .addCase(fetchVendors.rejected, (state, action) => {
         state.loading = false

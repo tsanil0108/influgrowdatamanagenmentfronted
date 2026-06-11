@@ -4,7 +4,10 @@ import { getClients } from '../api/clientApi'
 export const fetchClients = createAsyncThunk('clients/fetchAll', async (params, { rejectWithValue }) => {
   try {
     const res = await getClients(params)
-    return res.data
+    return {
+      content: res.data.data.content,
+      totalElements: res.data.data.totalElements,
+    }
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || 'Failed to fetch clients')
   }
@@ -23,11 +26,14 @@ const clientSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchClients.pending, (state) => { state.loading = true; state.error = null })
+      .addCase(fetchClients.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
       .addCase(fetchClients.fulfilled, (state, action) => {
         state.loading = false
-        state.list = action.payload.content || action.payload
-        state.total = action.payload.totalElements || action.payload.length || 0
+        state.list = action.payload.content
+        state.total = action.payload.totalElements
       })
       .addCase(fetchClients.rejected, (state, action) => {
         state.loading = false

@@ -1,3 +1,4 @@
+// src/pages/masters/bank/BankFormPage.jsx
 import React, { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -8,16 +9,25 @@ import { bankApi } from '../../../api/bankApi'
 
 const BankFormPage = () => {
   const navigate = useNavigate()
-  const { id } = useParams()
-  const isEdit = Boolean(id)
+  const { id }   = useParams()
+  const isEdit   = Boolean(id)
 
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm()
 
   useEffect(() => {
     if (isEdit) {
-      bankApi.getBankById(id).then(r => {
-        const b = r.data
-        Object.keys(b).forEach(k => setValue(k, b[k]))
+      bankApi.getBankById(id).then(res => {
+        // API: { success, message, data: { id, bankName, ... } }
+        const b = res.data?.data
+        if (b) {
+          setValue('bankName',      b.bankName)
+          setValue('accountNumber', b.accountNumber)
+          setValue('ifscCode',      b.ifscCode)
+          setValue('branchAddress', b.branchAddress)
+        }
+      }).catch(err => {
+        message.error('Failed to load bank details')
+        console.error(err)
       })
     }
   }, [id])
@@ -38,27 +48,30 @@ const BankFormPage = () => {
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 700, margin: '0 auto' }}>
-      <PageHeader title={isEdit ? 'Edit Bank Account' : 'Add Bank Account'} onBack={() => navigate('/banks')} />
-      <Card>
+    <div>
+      <PageHeader
+        title={isEdit ? 'Edit Bank Account' : 'Add Bank Account'}
+        onBack={() => navigate('/banks')}
+      />
+      <Card style={{ maxWidth: 700, margin: '0 auto' }}>
         <Form layout="vertical" onFinish={handleSubmit(onSubmit)}>
           <Row gutter={16}>
             <Col span={12}>
               <FormInput
-                name="bank_name"
+                name="bankName"
                 label="Bank Name"
-                register={register('bank_name', { required: 'Bank name is required' })}
-                error={errors.bank_name}
+                register={register('bankName', { required: 'Bank name is required' })}
+                error={errors.bankName}
                 required
                 placeholder="e.g. HDFC Bank"
               />
             </Col>
             <Col span={12}>
               <FormInput
-                name="account_number"
+                name="accountNumber"
                 label="Account Number"
-                register={register('account_number', { required: 'Account number is required' })}
-                error={errors.account_number}
+                register={register('accountNumber', { required: 'Account number is required' })}
+                error={errors.accountNumber}
                 required
                 placeholder="Enter account number"
               />
@@ -67,26 +80,27 @@ const BankFormPage = () => {
           <Row gutter={16}>
             <Col span={12}>
               <FormInput
-                name="ifsc_code"
+                name="ifscCode"
                 label="IFSC Code"
-                register={register('ifsc_code', {
+                register={register('ifscCode', {
                   pattern: { value: /^[A-Z]{4}0[A-Z0-9]{6}$/, message: 'Invalid IFSC format' }
                 })}
-                error={errors.ifsc_code}
+                error={errors.ifscCode}
                 placeholder="e.g. HDFC0001234"
                 maxLength={11}
               />
             </Col>
+            <Col span={12}>
+              <FormInput
+                name="branchAddress"
+                label="Branch Address"
+                register={register('branchAddress')}
+                error={errors.branchAddress}
+                placeholder="Full branch address"
+              />
+            </Col>
           </Row>
-          <FormInput
-            name="branch_address"
-            label="Branch Address"
-            register={register('branch_address')}
-            error={errors.branch_address}
-            placeholder="Full branch address"
-          />
-
-          <Space>
+          <Space style={{ marginTop: 8 }}>
             <Button type="primary" htmlType="submit" loading={isSubmitting}>
               {isEdit ? 'Update' : 'Save'}
             </Button>

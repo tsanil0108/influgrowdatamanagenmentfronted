@@ -6,6 +6,14 @@ import { useSelector } from 'react-redux'
 
 const { Header: AntHeader } = Layout
 
+const capitalizeName = (name) => {
+  if (!name) return 'User'
+  return name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
 export default function Header() {
   const { user, logout } = useAuth()
   const collapsed = useSelector((state) => state.ui.sidebarCollapsed)
@@ -19,6 +27,8 @@ export default function Header() {
       onClick: logout,
     },
   ]
+
+  const displayName = capitalizeName(user?.fullName || user?.username)
 
   return (
     <AntHeader style={{
@@ -51,7 +61,7 @@ export default function Header() {
           <Avatar
             size={32}
             icon={<UserOutlined />}
-            style={{ background: 'var(--color-brand)' }}
+            style={{ background: '#FF6B1A' }}
           />
           <span style={{
             fontFamily: 'var(--font-body)',
@@ -59,7 +69,7 @@ export default function Header() {
             color: 'var(--color-text-primary)',
             fontSize: 14,
           }}>
-            {user?.fullName || user?.username || 'User'}
+            {displayName}
           </span>
           <DownOutlined style={{ fontSize: 10, color: 'var(--color-text-muted)' }} />
         </Space>

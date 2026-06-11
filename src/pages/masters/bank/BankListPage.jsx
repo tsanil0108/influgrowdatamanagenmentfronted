@@ -1,23 +1,25 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Space } from 'antd'
-import { PlusOutlined, EditOutlined } from '@ant-design/icons'
+import { Button, Space, Popconfirm, message } from 'antd'
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import DataTable from '../../../components/common/DataTable'
 import PageHeader from '../../../components/common/PageHeader'
 import { bankApi } from '../../../api/bankApi'
 
 const BankListPage = () => {
   const navigate = useNavigate()
-  const [banks, setBanks] = useState([])
+  const [banks,   setBanks]   = useState([])
   const [loading, setLoading] = useState(false)
 
   const fetchBanks = async () => {
     setLoading(true)
     try {
-      const res = await bankApi.getBanks()
-      setBanks(res.data || [])
+      const res  = await bankApi.getBanks()
+      const list = res.data?.data
+      setBanks(Array.isArray(list) ? list : [])
     } catch (err) {
-      console.error(err)
+      console.error('fetchBanks error:', err)
+      setBanks([])
     } finally {
       setLoading(false)
     }
@@ -25,33 +27,59 @@ const BankListPage = () => {
 
   useEffect(() => { fetchBanks() }, [])
 
+  const handleDelete = async (id) => {
+    try {
+      await bankApi.deleteBank(id)
+      message.success('Bank account deleted')
+      fetchBanks()
+    } catch {
+      message.error('Failed to delete bank account')
+    }
+  }
+
   const columns = [
-    { title: 'Bank Name', dataIndex: 'bank_name', key: 'bank_name' },
-    { title: 'Account Number', dataIndex: 'account_number', key: 'account_number', width: 180 },
-    { title: 'IFSC Code', dataIndex: 'ifsc_code', key: 'ifsc_code', width: 130 },
-    { title: 'Branch Address', dataIndex: 'branch_address', key: 'branch_address', ellipsis: true },
-    { title: 'Actions', key: 'actions', width: 80, fixed: 'right',
+    { title: 'Bank Name',      dataIndex: 'bankName',      key: 'bankName' },
+    { title: 'Account Number', dataIndex: 'accountNumber', key: 'accountNumber', width: 180 },
+    { title: 'IFSC Code',      dataIndex: 'ifscCode',      key: 'ifscCode',      width: 130 },
+    { title: 'Branch Address', dataIndex: 'branchAddress', key: 'branchAddress', ellipsis: true },
+    {
+      title: 'Actions', key: 'actions', width: 110, align: 'center',
       render: (_, r) => (
-        <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/banks/${r.id}/edit`)} />
-      ) },
+        <Space>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => navigate(`/banks/${r.id}/edit`)}
+          />
+          <Popconfirm
+            title="Delete Bank Account?"
+            description="Are you sure? This action cannot be undone."
+            okText="Yes, Delete"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => handleDelete(r.id)}
+          >
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      )
+    },
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <PageHeader
         title="Bank Accounts"
-        extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/banks/new')}>
-            Add Bank
-          </Button>
-        }
+        subtitle="Manage your bank accounts"
+        onAdd={() => navigate('/banks/new')}
+        addLabel="Add Bank"
       />
       <DataTable
         columns={columns}
         data={banks}
         loading={loading}
         onRefresh={fetchBanks}
-        searchKeys={['bank_name', 'account_number', 'ifsc_code']}
+        searchKeys={['bankName', 'accountNumber', 'ifscCode']}
       />
     </div>
   )

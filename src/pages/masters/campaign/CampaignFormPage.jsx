@@ -1,45 +1,49 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useForm, Controller } from 'react-hook-form'
-import { Button, Card, Col, Form, Row, Space, DatePicker, message } from 'antd'
+import { Button, Card, Col, Form, Input, Row, Space, DatePicker, Select, message } from 'antd'
 import dayjs from 'dayjs'
 import PageHeader from '../../../components/common/PageHeader'
-import FormInput from '../../../components/common/FormInput'
-import FormSelect from '../../../components/common/FormSelect'
 import { campaignApi } from '../../../api/campaignApi'
-import { clientApi } from '../../../api/clientApi'
+import { getClients } from '../../../api/clientApi'
+
+const { Option } = Select
 
 const CampaignFormPage = () => {
   const navigate = useNavigate()
   const { id } = useParams()
   const isEdit = Boolean(id)
-
-  const { register, control, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm()
+  const [form] = Form.useForm()
   const [clients, setClients] = useState([])
 
   useEffect(() => {
-    clientApi.getClients().then(r => setClients(r.data || []))
+    getClients({ page: 0, size: 100 }).then(r => {
+      const data = r.data?.data?.content ?? []
+      setClients(data)
+    })
   }, [])
 
   useEffect(() => {
     if (isEdit) {
       campaignApi.getCampaignById(id).then(r => {
-        const c = r.data
-        setValue('campaign_name', c.campaign_name)
-        setValue('client_id', c.client_id)
-        if (c.start_date) setValue('start_date', dayjs(c.start_date))
-        if (c.end_date) setValue('end_date', dayjs(c.end_date))
+        const c = r.data?.data
+        form.setFieldsValue({
+          clientId:     c.clientId,
+          campaignName: c.campaignName,
+          startDate:    c.startDate ? dayjs(c.startDate) : null,
+          endDate:      c.endDate   ? dayjs(c.endDate)   : null,
+        })
       })
     }
   }, [id])
 
-  const onSubmit = async (data) => {
+  const onFinish = async (values) => {
+    const payload = {
+      clientId:     values.clientId,
+      campaignName: values.campaignName,
+      startDate:    values.startDate?.format('YYYY-MM-DD'),
+      endDate:      values.endDate?.format('YYYY-MM-DD'),
+    }
     try {
-      const payload = {
-        ...data,
-        start_date: data.start_date?.format('YYYY-MM-DD'),
-        end_date: data.end_date?.format('YYYY-MM-DD'),
-      }
       if (isEdit) {
         await campaignApi.updateCampaign(id, payload)
         message.success('Campaign updated')
@@ -57,57 +61,38 @@ const CampaignFormPage = () => {
     <div style={{ padding: 24, maxWidth: 700, margin: '0 auto' }}>
       <PageHeader title={isEdit ? 'Edit Campaign' : 'New Campaign'} onBack={() => navigate('/campaigns')} />
       <Card>
-        <Form layout="vertical" onFinish={handleSubmit(onSubmit)}>
-          <FormSelect
-            name="client_id"
-            label="Client"
-            control={control}
-            error={errors.client_id}
-            options={clients.map(c => ({ value: c.id, label: c.client_name }))}
-            required
-            showSearch
-          />
-          <FormInput
-            name="campaign_name"
-            label="Campaign Name"
-            register={register('campaign_name', { required: 'Campaign name is required' })}
-            error={errors.campaign_name}
-            required
-            placeholder="Enter campaign name"
-          />
+        <Form form={form} layout="vertical" onFinish={onFinish}>
+
+          <Form.Item name="clientId" label="Client" rules={[{ required: true, message: 'Please select a client' }]}>
+            <Select showSearch placeholder="Select client" optionFilterProp="children">
+              {clients.map(c => <Option key={c.id} value={c.id}>{c.clientName}</Option>)}
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="campaignName" label="Campaign Name" rules={[{ required: true, message: 'Campaign name is required' }]}>
+            <Input placeholder="Enter campaign name" />
+          </Form.Item>
+
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item label="Start Date" required>
-                <Controller
-                  name="start_date"
-                  control={control}
-                  rules={{ required: 'Start date is required' }}
-                  render={({ field }) => (
-                    <DatePicker {...field} format="DD/MM/YYYY" style={{ width: '100%' }} />
-                  )}
-                />
+              <Form.Item name="startDate" label="Start Date" rules={[{ required: true, message: 'Start date is required' }]}>
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item label="End Date" required>
-                <Controller
-                  name="end_date"
-                  control={control}
-                  rules={{ required: 'End date is required' }}
-                  render={({ field }) => (
-                    <DatePicker {...field} format="DD/MM/YYYY" style={{ width: '100%' }} />
-                  )}
-                />
+              <Form.Item name="endDate" label="End Date" rules={[{ required: true, message: 'End date is required' }]}>
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>
 
           <Space>
-            <Button type="primary" htmlType="submit" loading={isSubmitting}>
+            <Button type="primary" htmlType="submit">
               {isEdit ? 'Update' : 'Save'}
             </Button>
             <Button onClick={() => navigate('/campaigns')}>Cancel</Button>
           </Space>
+
         </Form>
       </Card>
     </div>

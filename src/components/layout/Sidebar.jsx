@@ -8,6 +8,7 @@ import {
   ProjectOutlined, FileTextOutlined, AuditOutlined, FileDoneOutlined,
   WalletOutlined, BarChartOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
 } from '@ant-design/icons'
+import logo from '../../assets/logo.png'   // apna file naam yahan daalo e.g. logo.png / logo.svg
 
 const { Sider } = Layout
 
@@ -53,8 +54,9 @@ export default function Sidebar() {
         top: 0,
         bottom: 0,
         zIndex: 100,
-        background: 'var(--color-text-primary)',
+        background: '#FFFFFF',
         overflow: 'auto',
+        borderRight: '1px solid #EAECF4',
       }}
     >
       {/* Logo */}
@@ -63,33 +65,49 @@ export default function Sidebar() {
         display: 'flex',
         alignItems: 'center',
         padding: collapsed ? '0 24px' : '0 20px',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        borderBottom: '1px solid #EAECF4',
         justifyContent: collapsed ? 'center' : 'space-between',
       }}>
-        {!collapsed && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: 8,
-              background: 'var(--color-brand)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'var(--font-display)', fontWeight: 800, color: '#fff', fontSize: 14,
-            }}>IG</div>
-            <span style={{
-              fontFamily: 'var(--font-display)', fontWeight: 700,
-              color: '#fff', fontSize: 16, letterSpacing: '-0.02em',
-            }}>InfluGrow</span>
-          </div>
+        {collapsed ? (
+          /* Collapsed: sirf square logo */
+          <img
+            src={logo}
+            alt="InfluGrow"
+            style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 8 }}
+          />
+        ) : (
+          /* Expanded: full logo + collapse button */
+          <>
+            <img
+              src={logo}
+              alt="InfluGrow"
+              style={{ height: 32, maxWidth: 140, objectFit: 'contain' }}
+            />
+            <div
+              onClick={() => dispatch(setSidebarCollapsed(!collapsed))}
+              style={{ color: '#A0AAC0', cursor: 'pointer', fontSize: 16 }}
+            >
+              <MenuFoldOutlined />
+            </div>
+          </>
         )}
-        <div
-          onClick={() => dispatch(setSidebarCollapsed(!collapsed))}
-          style={{ color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 16 }}
-        >
-          {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-        </div>
       </div>
 
+      {/* Collapsed: unfold button */}
+      {collapsed && (
+        <div
+          onClick={() => dispatch(setSidebarCollapsed(!collapsed))}
+          style={{
+            display: 'flex', justifyContent: 'center',
+            padding: '12px 0', color: '#A0AAC0', cursor: 'pointer', fontSize: 16,
+          }}
+        >
+          <MenuUnfoldOutlined />
+        </div>
+      )}
+
       <Menu
-        theme="dark"
+        theme="light"
         mode="inline"
         selectedKeys={[selectedKey]}
         openKeys={collapsed ? [] : openKeys}
@@ -99,7 +117,7 @@ export default function Sidebar() {
         style={{
           background: 'transparent',
           border: 'none',
-          marginTop: 8,
+          marginTop: collapsed ? 0 : 8,
           fontFamily: 'var(--font-body)',
         }}
       />
