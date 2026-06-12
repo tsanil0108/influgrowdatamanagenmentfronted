@@ -1,6 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, App as AntApp } from 'antd'
 import MainLayout from './components/layout/MainLayout'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 
@@ -72,7 +72,8 @@ const antdTheme = {
 export default function App() {
   return (
     <ConfigProvider theme={antdTheme}>
-      <BrowserRouter>
+      <AntApp>
+        <BrowserRouter>
         <Routes>
 
           {/* ── Public auth routes ── */}
@@ -117,8 +118,9 @@ export default function App() {
             <Route path="invoices/:id" element={<InvoiceDetailPage />} />
 
             {/* Vendor Bills */}
-            <Route path="vendor-bills"     element={<VendorBillListPage />} />
-            <Route path="vendor-bills/new" element={<VendorBillFormPage />} />
+            <Route path="vendor-bills"          element={<VendorBillListPage />} />
+            <Route path="vendor-bills/new"      element={<VendorBillFormPage />} />
+            <Route path="vendor-bills/:id/edit" element={<VendorBillFormPage />} /> {/* ✅ YE ADD KIA */}
 
             {/* Bank Entries */}
             <Route path="bank-entries"             element={<BankEntryListPage />} />
@@ -146,6 +148,7 @@ export default function App() {
 
         </Routes>
       </BrowserRouter>
+      </AntApp>
     </ConfigProvider>
   )
 }

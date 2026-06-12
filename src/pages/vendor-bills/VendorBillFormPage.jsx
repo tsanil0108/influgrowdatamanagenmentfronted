@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import {
   Form, Button, DatePicker, InputNumber, Card, Row, Col,
-  Space, message, Divider, Typography
+  Space, message, Divider, Typography, Spin
 } from 'antd'
 import dayjs from 'dayjs'
 import PageHeader from '../../components/common/PageHeader'
@@ -17,8 +17,11 @@ import { vendorApi } from '../../api/vendorApi'
 const { Text } = Typography
 
 const VendorBillFormPage = () => {
-  const navigate = useNavigate()
-  const { register, control, handleSubmit, watch, setValue,
+  const navigate  = useNavigate()
+  const { id }    = useParams()          // ← edit mode me id milega
+  const isEdit    = Boolean(id)
+
+  const { register, control, handleSubmit, watch, setValue, reset,
     formState: { errors, isSubmitting } } = useForm({
     defaultValues: { billDate: dayjs(), tdsPercent: 0 }
   })
@@ -27,15 +30,17 @@ const VendorBillFormPage = () => {
   const [invoices,        setInvoices]        = useState([])
   const [vendors,         setVendors]         = useState([])
   const [loadingInvoices, setLoadingInvoices] = useState(false)
+  const [loadingData,     setLoadingData]     = useState(false)
 
   const selectedClientId = watch('clientId')
-  const amount       = Number(watch('amount')     || 0)
-  const gstAmount    = Number(watch('gstAmount')  || 0)
-  const tdsPercent   = Number(watch('tdsPercent') || 0)
+  const amount        = Number(watch('amount')     || 0)
+  const gstAmount     = Number(watch('gstAmount')  || 0)
+  const tdsPercent    = Number(watch('tdsPercent') || 0)
   const totalAmount   = amount + gstAmount
   const tdsAmount     = totalAmount * (tdsPercent / 100)
   const payableAmount = totalAmount - tdsAmount
 
+  // ── 1. Clients + Vendors load karo ──────────────────────────
   useEffect(() => {
     clientApi.getClients({ page: 0, size: 1000 }).then(r => {
       const list = r.data?.data?.content ?? r.data?.data ?? []
@@ -47,19 +52,56 @@ const VendorBillFormPage = () => {
     })
   }, [])
 
+  // ── 2. Edit mode — existing bill data prefill karo ──────────
   useEffect(() => {
-    if (selectedClientId) {
-      setLoadingInvoices(true)
-      invoiceApi.getInvoices({ clientId: selectedClientId, page: 0, size: 1000 })
-        .then(r => {
-          const list = r.data?.data?.content ?? r.data?.data ?? []
-          setInvoices(Array.isArray(list) ? list : [])
+    if (!isEdit) return
+    setLoadingData(true)
+    vendorBillApi.getVendorBillById(id)
+      .then(r => {
+        const bill = r.data?.data ?? r.data
+        // Invoices for this client load karo
+        if (bill.clientId) {
+          invoiceApi.getInvoices({ clientId: bill.clientId, page: 0, size: 1000 })
+            .then(ir => {
+              const list = ir.data?.data?.content ?? ir.data?.data ?? []
+              setInvoices(Array.isArray(list) ? list : [])
+            })
+        }
+        // Form me existing values set karo
+        reset({
+          clientId:         bill.clientId,
+          invoiceId:        bill.invoiceId,
+          vendorId:         bill.vendorId,
+          vendorBillNumber: bill.vendorBillNumber,
+          billDate:         bill.billDate ? dayjs(bill.billDate) : dayjs(),
+          amount:           bill.amount,
+          gstAmount:        bill.gstAmount,
+          tdsPercent:       bill.tdsPercent,
         })
-        .finally(() => setLoadingInvoices(false))
-      setValue('invoiceId', null)
-    }
+      })
+      .catch(() => message.error('Failed to load vendor bill'))
+      .finally(() => setLoadingData(false))
+  }, [id])
+
+  // ── 3. Client change hone pe invoices reload karo ───────────
+  useEffect(() => {
+    if (!selectedClientId) return
+    // Edit mode me initial load already ho chuka hai — skip karo
+    if (isEdit && loadingData) return
+
+    setLoadingInvoices(true)
+    invoiceApi.getInvoices({ clientId: selectedClientId, page: 0, size: 1000 })
+      .then(r => {
+        const list = r.data?.data?.content ?? r.data?.data ?? []
+        setInvoices(Array.isArray(list) ? list : [])
+      })
+      .finally(() => setLoadingInvoices(false))
+
+    // Sirf create mode me invoiceId reset karo
+    if (!isEdit) setValue('invoiceId', null)
   }, [selectedClientId])
 
+  // ── 4. Submit ────────────────────────────────────────────────
   const onSubmit = async (data) => {
     try {
       const payload = {
@@ -75,17 +117,34 @@ const VendorBillFormPage = () => {
         tdsAmount,
         payableAmount,
       }
-      await vendorBillApi.createVendorBill(payload)
-      message.success('Vendor bill created')
+
+      if (isEdit) {
+        await vendorBillApi.updateVendorBill(id, payload)
+        message.success('Vendor bill updated')
+      } else {
+        await vendorBillApi.createVendorBill(payload)
+        message.success('Vendor bill created')
+      }
       navigate('/vendor-bills')
     } catch (err) {
-      message.error(err.response?.data?.message || 'Failed to create vendor bill')
+      message.error(err.response?.data?.message || `Failed to ${isEdit ? 'update' : 'create'} vendor bill`)
     }
+  }
+
+  if (loadingData) {
+    return (
+      <div style={{ padding: 24, textAlign: 'center', paddingTop: 80 }}>
+        <Spin size="large" tip="Loading vendor bill..." />
+      </div>
+    )
   }
 
   return (
     <div style={{ padding: 24, maxWidth: 800, margin: '0 auto' }}>
-      <PageHeader title="New Vendor Bill" onBack={() => navigate('/vendor-bills')} />
+      <PageHeader
+        title={isEdit ? 'Edit Vendor Bill' : 'New Vendor Bill'}
+        onBack={() => navigate('/vendor-bills')}
+      />
       <Form layout="vertical" onFinish={handleSubmit(onSubmit)}>
 
         <Card title="Linking" style={{ marginBottom: 16 }}>
@@ -181,7 +240,9 @@ const VendorBillFormPage = () => {
         </Card>
 
         <Space>
-          <Button type="primary" htmlType="submit" loading={isSubmitting}>Create Vendor Bill</Button>
+          <Button type="primary" htmlType="submit" loading={isSubmitting}>
+            {isEdit ? 'Update Vendor Bill' : 'Create Vendor Bill'}
+          </Button>
           <Button onClick={() => navigate('/vendor-bills')}>Cancel</Button>
         </Space>
       </Form>

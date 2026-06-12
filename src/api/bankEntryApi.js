@@ -9,10 +9,13 @@ export const createContra  = (data) => axiosInstance.post('/bank-entries/contra'
 
 export const getStatement = (params) => axiosInstance.get('/bank-entries', { params })
 
+export const deleteBankEntry = (id) => axiosInstance.delete(`/bank-entries/${id}`)
+
 export const bankEntryApi = {
   getBankEntries,
   createReceipt,
   createPayment,
   createContra,
   getStatement,
+  deleteBankEntry,
 }

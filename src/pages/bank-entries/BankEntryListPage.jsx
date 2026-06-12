@@ -1,7 +1,7 @@
 // src/pages/bank-entries/BankEntryListPage.jsx
 import React, { useEffect, useState } from 'react'
-import { Button, Space, Tag, DatePicker, Select } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { Button, Space, Tag, DatePicker, Select, Popconfirm, Tooltip, App } from 'antd'
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import DataTable from '../../components/common/DataTable'
@@ -14,6 +14,7 @@ const { Option } = Select
 const ENTRY_TYPE_COLORS = { RECEIPT: 'green', PAYMENT: 'red', CONTRA: 'blue' }
 
 const BankEntryListPage = () => {
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const [entries,    setEntries]    = useState([])
   const [loading,    setLoading]    = useState(false)
@@ -41,6 +42,17 @@ const BankEntryListPage = () => {
     }
   }
 
+  const handleDelete = async (id) => {
+    try {
+      await bankEntryApi.deleteBankEntry(id)
+      message.success('Bank entry deleted')
+      fetchEntries()
+    } catch (err) {
+      console.error('Delete error:', err.response?.status, err.response?.data)
+      message.error(err.response?.data?.message || 'Failed to delete bank entry')
+    }
+  }
+
   useEffect(() => { fetchEntries() }, [typeFilter, dateRange])
 
   const columns = [
@@ -58,6 +70,26 @@ const BankEntryListPage = () => {
         ? `₹${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
         : '-' },
     { title: 'Remarks',   dataIndex: 'remarks',     key: 'remarks',     ellipsis: true },
+    {
+      title: 'Actions', key: 'actions', width: 90, align: 'center', fixed: 'right',
+      render: (_, record) => (
+        <Popconfirm
+          title="Delete this entry?"
+          description="Linked invoice/vendor bill amounts will be adjusted."
+          onConfirm={() => handleDelete(record.id)}
+          okText="Delete"
+          okButtonProps={{ danger: true }}
+          cancelText="Cancel"
+        >
+          <Tooltip title="Delete">
+            <Button
+              type="text" size="small"
+              icon={<DeleteOutlined style={{ color: '#ff4d4f' }} />}
+            />
+          </Tooltip>
+        </Popconfirm>
+      ),
+    },
   ]
 
   const extraHeader = (
@@ -86,7 +118,7 @@ const BankEntryListPage = () => {
         data={entries}
         loading={loading}
         onRefresh={fetchEntries}
-        scroll={{ x: 900 }}
+        scroll={{ x: 1000 }}
       />
     </div>
   )
