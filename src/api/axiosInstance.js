@@ -1,12 +1,13 @@
 import axios from 'axios'
 import { getToken, removeToken } from '../utils/tokenHelper'
 
+const API_URL =
+  window.location.hostname === 'localhost'
+    ? 'http://localhost:8080/api'
+    : 'https://influgrowdatamanagenmentbackned.onrender.com/api'
+
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:8080/api',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: API_URL,
 })
 
 // Request interceptor
