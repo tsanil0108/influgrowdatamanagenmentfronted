@@ -7,11 +7,15 @@ export const updateClient = (id, data) => axiosInstance.put(`/clients/${id}`, da
 export const deleteClient = (id) => axiosInstance.delete(`/clients/${id}`)
 
 export const uploadClientDoc = (id, formData) =>
-  axiosInstance.post('/files/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    params: { entityType: 'CLIENT', entityId: id },
-  })
-
+  axiosInstance.post(
+    `/clients/${id}/documents`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  )
 export const clientApi = {
   getClients,
   getClientById,

@@ -1,121 +1,148 @@
+// src/pages/vendor-bills/VendorBillFormPage.jsx
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useForm, Controller } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import {
-  Form, Button, DatePicker, InputNumber, Card, Row, Col,
-  Space, message, Divider, Typography, Spin
+  Button, Card, Col, DatePicker, Form, Input, InputNumber,
+  Row, Select, Space, message, Divider, Typography
 } from 'antd'
 import dayjs from 'dayjs'
 import PageHeader from '../../components/common/PageHeader'
-import FormInput from '../../components/common/FormInput'
-import FormSelect from '../../components/common/FormSelect'
 import { vendorBillApi } from '../../api/vendorBillApi'
 import { clientApi } from '../../api/clientApi'
-import { invoiceApi } from '../../api/invoiceApi'
 import { vendorApi } from '../../api/vendorApi'
+import { invoiceApi } from '../../api/invoiceApi'
 
 const { Text } = Typography
+const { Option } = Select
 
 const VendorBillFormPage = () => {
-  const navigate  = useNavigate()
-  const { id }    = useParams()          // ← edit mode me id milega
-  const isEdit    = Boolean(id)
+  const navigate = useNavigate()
+  const { id } = useParams()
+  const isEdit = Boolean(id)
 
-  const { register, control, handleSubmit, watch, setValue, reset,
-    formState: { errors, isSubmitting } } = useForm({
-    defaultValues: { billDate: dayjs(), tdsPercent: 0 }
+  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm({
+    defaultValues: {
+      clientId: null,
+      invoiceId: null,
+      vendorId: null,
+      billDate: dayjs(),
+      vendorBillNumber: '',
+      amount: 0,
+      cgstAmount: 0,
+      sgstAmount: 0,
+      igstAmount: 0,
+      tdsPercent: 0,
+      notes: '',
+    }
   })
 
-  const [clients,         setClients]         = useState([])
-  const [invoices,        setInvoices]        = useState([])
-  const [vendors,         setVendors]         = useState([])
-  const [loadingInvoices, setLoadingInvoices] = useState(false)
-  const [loadingData,     setLoadingData]     = useState(false)
+  const [clients,    setClients]    = useState([])
+  const [vendors,    setVendors]    = useState([])
+  const [invoices,   setInvoices]   = useState([])
+  const [submitting, setSubmitting] = useState(false)
 
-  const selectedClientId = watch('clientId')
-  const amount        = Number(watch('amount')     || 0)
-  const gstAmount     = Number(watch('gstAmount')  || 0)
-  const tdsPercent    = Number(watch('tdsPercent') || 0)
-  const totalAmount   = amount + gstAmount
-  const tdsAmount     = totalAmount * (tdsPercent / 100)
-  const payableAmount = totalAmount - tdsAmount
-
-  // ── 1. Clients + Vendors load karo ──────────────────────────
   useEffect(() => {
-    clientApi.getClients({ page: 0, size: 1000 }).then(r => {
-      const list = r.data?.data?.content ?? r.data?.data ?? []
-      setClients(Array.isArray(list) ? list : [])
-    })
-    vendorApi.getVendors({ page: 0, size: 1000 }).then(r => {
-      const list = r.data?.data?.content ?? r.data?.data ?? []
-      setVendors(Array.isArray(list) ? list : [])
-    })
-  }, [])
-
-  // ── 2. Edit mode — existing bill data prefill karo ──────────
-  useEffect(() => {
-    if (!isEdit) return
-    setLoadingData(true)
-    vendorBillApi.getVendorBillById(id)
+    clientApi.getClients({ page: 0, size: 1000 })
       .then(r => {
-        const bill = r.data?.data ?? r.data
-        // Invoices for this client load karo
-        if (bill.clientId) {
-          invoiceApi.getInvoices({ clientId: bill.clientId, page: 0, size: 1000 })
-            .then(ir => {
-              const list = ir.data?.data?.content ?? ir.data?.data ?? []
-              setInvoices(Array.isArray(list) ? list : [])
-            })
-        }
-        // Form me existing values set karo
-        reset({
-          clientId:         bill.clientId,
-          invoiceId:        bill.invoiceId,
-          vendorId:         bill.vendorId,
-          vendorBillNumber: bill.vendorBillNumber,
-          billDate:         bill.billDate ? dayjs(bill.billDate) : dayjs(),
-          amount:           bill.amount,
-          gstAmount:        bill.gstAmount,
-          tdsPercent:       bill.tdsPercent,
-        })
+        const list = r.data?.data?.content ?? r.data?.data ?? []
+        setClients(Array.isArray(list) ? list : [])
       })
-      .catch(() => message.error('Failed to load vendor bill'))
-      .finally(() => setLoadingData(false))
-  }, [id])
+      .catch(() => message.error('Failed to load clients'))
 
-  // ── 3. Client change hone pe invoices reload karo ───────────
-  useEffect(() => {
-    if (!selectedClientId) return
-    // Edit mode me initial load already ho chuka hai — skip karo
-    if (isEdit && loadingData) return
+    vendorApi.getVendors({ page: 0, size: 1000 })
+      .then(r => {
+        const list = r.data?.data?.content ?? r.data?.data ?? []
+        setVendors(Array.isArray(list) ? list : [])
+      })
+      .catch(() => message.error('Failed to load vendors'))
 
-    setLoadingInvoices(true)
-    invoiceApi.getInvoices({ clientId: selectedClientId, page: 0, size: 1000 })
+    invoiceApi.getInvoices({ page: 0, size: 1000 })
       .then(r => {
         const list = r.data?.data?.content ?? r.data?.data ?? []
         setInvoices(Array.isArray(list) ? list : [])
       })
-      .finally(() => setLoadingInvoices(false))
+      .catch(() => message.error('Failed to load invoices'))
+  }, [])
 
-    // Sirf create mode me invoiceId reset karo
-    if (!isEdit) setValue('invoiceId', null)
-  }, [selectedClientId])
+  useEffect(() => {
+    if (!isEdit) return
+    vendorBillApi.getVendorBillById(id).then(r => {
+      const b = r.data?.data
+      if (!b) return
+      setValue('clientId', b.clientId)
+      setValue('invoiceId', b.invoiceId || null)
+      setValue('vendorId', b.vendorId)
+      setValue('billDate', b.billDate ? dayjs(b.billDate) : dayjs())
+      setValue('vendorBillNumber', b.vendorBillNumber || '')
+      setValue('amount', Number(b.amount) || 0)
+      setValue('cgstAmount', Number(b.cgstAmount) || 0)
+      setValue('sgstAmount', Number(b.sgstAmount) || 0)
+      setValue('igstAmount', Number(b.igstAmount) || 0)
+      setValue('tdsPercent', Number(b.tdsPercent) || 0)
+      setValue('notes', b.notes || '')
+    }).catch(() => message.error('Failed to load vendor bill'))
+  }, [id])
 
-  // ── 4. Submit ────────────────────────────────────────────────
+  const amount = watch('amount')
+  const cgst   = watch('cgstAmount')
+  const sgst   = watch('sgstAmount')
+  const igst   = watch('igstAmount')
+  const tdsPct = watch('tdsPercent')
+
+  const amt  = Number(amount) || 0
+  const c    = Number(cgst) || 0
+  const s    = Number(sgst) || 0
+  const i    = Number(igst) || 0
+  const tp   = Number(tdsPct) || 0
+
+  const gstTotal      = c + s + i
+  const totalAmount   = amt + gstTotal
+  const tdsAmount     = parseFloat(((amt * tp) / 100).toFixed(2))
+  const payableAmount = totalAmount - tdsAmount
+
+  const handleCgstChange = (val) => {
+    const v = val ?? 0
+    setValue('cgstAmount', v)
+    if (v > 0) {
+      setValue('sgstAmount', v)
+      setValue('igstAmount', 0)
+    }
+  }
+
+  const handleSgstChange = (val) => {
+    const v = val ?? 0
+    setValue('sgstAmount', v)
+    if (v > 0) {
+      setValue('cgstAmount', v)
+      setValue('igstAmount', 0)
+    }
+  }
+
+  const handleIgstChange = (val) => {
+    const v = val ?? 0
+    setValue('igstAmount', v)
+    if (v > 0) {
+      setValue('cgstAmount', 0)
+      setValue('sgstAmount', 0)
+    }
+  }
+
   const onSubmit = async (data) => {
+    setSubmitting(true)
     try {
       const payload = {
         clientId:         data.clientId,
-        invoiceId:        data.invoiceId,
+        invoiceId:        data.invoiceId || null,
         vendorId:         data.vendorId,
-        vendorBillNumber: data.vendorBillNumber,
         billDate:         data.billDate?.format('YYYY-MM-DD'),
-        amount,
-        gstAmount,
-        tdsPercent,
-        totalAmount,
-        tdsAmount,
-        payableAmount,
+        vendorBillNumber: data.vendorBillNumber || null,
+        amount:           Number(data.amount),
+        cgstAmount:       Number(data.cgstAmount) || 0,
+        sgstAmount:       Number(data.sgstAmount) || 0,
+        igstAmount:       Number(data.igstAmount) || 0,
+        tdsPercent:       Number(data.tdsPercent) || 0,
+        notes:            data.notes || null,
       }
 
       if (isEdit) {
@@ -127,124 +154,234 @@ const VendorBillFormPage = () => {
       }
       navigate('/vendor-bills')
     } catch (err) {
-      message.error(err.response?.data?.message || `Failed to ${isEdit ? 'update' : 'create'} vendor bill`)
+      message.error(err.response?.data?.message || 'Failed to save vendor bill')
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  if (loadingData) {
-    return (
-      <div style={{ padding: 24, textAlign: 'center', paddingTop: 80 }}>
-        <Spin size="large" tip="Loading vendor bill..." />
-      </div>
-    )
-  }
+  const fmt = v => `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
 
   return (
-    <div style={{ padding: 24, maxWidth: 800, margin: '0 auto' }}>
+    <div style={{ padding: 24 }}>
       <PageHeader
         title={isEdit ? 'Edit Vendor Bill' : 'New Vendor Bill'}
         onBack={() => navigate('/vendor-bills')}
       />
-      <Form layout="vertical" onFinish={handleSubmit(onSubmit)}>
-
-        <Card title="Linking" style={{ marginBottom: 16 }}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <FormSelect name="clientId" label="Client" control={control} error={errors.clientId}
-                options={clients.map(c => ({ value: c.id, label: c.clientName }))}
-                required showSearch placeholder="Select client" />
-            </Col>
-            <Col span={12}>
-              <FormSelect name="invoiceId" label="Linked Invoice" control={control} error={errors.invoiceId}
-                options={invoices.map(i => ({ value: i.id, label: `${i.invoiceNumber} (${i.status})` }))}
-                loading={loadingInvoices} placeholder="Select invoice" />
-            </Col>
-          </Row>
-          <FormSelect name="vendorId" label="Vendor" control={control} error={errors.vendorId}
-            options={vendors.map(v => ({ value: v.id, label: v.vendorName }))}
-            required showSearch placeholder="Select vendor" />
-        </Card>
+      <Form layout="vertical" onFinish={handleSubmit(onSubmit)} style={{ maxWidth: 900, margin: '0 auto' }}>
 
         <Card title="Bill Details" style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item label="Bill Date" required>
-                <Controller name="billDate" control={control} rules={{ required: 'Date is required' }}
+              <Form.Item label="Client" required validateStatus={errors.clientId && 'error'}
+                help={errors.clientId?.message}>
+                <Controller
+                  name="clientId" control={control}
+                  rules={{ required: 'Client is required' }}
                   render={({ field }) => (
-                    <DatePicker {...field} format="DD/MM/YYYY" style={{ width: '100%' }} />
-                  )} />
+                    <Select {...field} showSearch optionFilterProp="children" placeholder="Select client">
+                      {clients.map(c => <Option key={c.id} value={c.id}>{c.clientName}</Option>)}
+                    </Select>
+                  )}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <FormInput name="vendorBillNumber" label="Vendor's Bill Number"
-                register={register('vendorBillNumber')} error={errors.vendorBillNumber}
-                placeholder="Vendor's own reference" />
+              <Form.Item label="Vendor" required validateStatus={errors.vendorId && 'error'}
+                help={errors.vendorId?.message}>
+                <Controller
+                  name="vendorId" control={control}
+                  rules={{ required: 'Vendor is required' }}
+                  render={({ field }) => (
+                    <Select {...field} showSearch optionFilterProp="children" placeholder="Select vendor">
+                      {vendors.map(v => <Option key={v.id} value={v.id}>{v.vendorName}</Option>)}
+                    </Select>
+                  )}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="Link to Invoice (optional)">
+                <Controller
+                  name="invoiceId" control={control}
+                  render={({ field }) => (
+                    <Select {...field} allowClear showSearch optionFilterProp="children"
+                      placeholder="Select invoice (optional)">
+                      {invoices.map(inv => (
+                        <Option key={inv.id} value={inv.id}>
+                          {inv.invoiceNumber} — {inv.clientName}
+                        </Option>
+                      ))}
+                    </Select>
+                  )}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Vendor's Bill Number">
+                <Controller
+                  name="vendorBillNumber" control={control}
+                  render={({ field }) => <Input {...field} placeholder="e.g. 25-26/INC/12/015" />}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="Bill Date" required validateStatus={errors.billDate && 'error'}
+                help={errors.billDate?.message}>
+                <Controller
+                  name="billDate" control={control}
+                  rules={{ required: 'Bill date is required' }}
+                  render={({ field }) => (
+                    <DatePicker {...field} format="DD/MM/YYYY" style={{ width: '100%' }} />
+                  )}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Amount (₹)" required validateStatus={errors.amount && 'error'}
+                help={errors.amount?.message}>
+                <Controller
+                  name="amount" control={control}
+                  rules={{ required: 'Amount is required', min: { value: 0.01, message: 'Must be > 0' } }}
+                  render={({ field }) => (
+                    <InputNumber
+                      {...field} min={0} precision={2} style={{ width: '100%' }}
+                      formatter={v => `₹ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      parser={v => v.replace(/₹\s?|(,*)/g, '')}
+                    />
+                  )}
+                />
+              </Form.Item>
             </Col>
           </Row>
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item label="Amount (₹)" required
-                validateStatus={errors.amount ? 'error' : ''} help={errors.amount?.message}>
-                <Controller name="amount" control={control} rules={{ required: 'Amount is required' }}
+              <Form.Item label="CGST (₹)">
+                <Controller
+                  name="cgstAmount" control={control}
                   render={({ field }) => (
-                    <InputNumber {...field} min={0} precision={2} style={{ width: '100%' }}
+                    <InputNumber
+                      {...field} min={0} precision={2} style={{ width: '100%' }}
+                      onChange={handleCgstChange}
                       formatter={v => `₹ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                      parser={v => v.replace(/₹\s?|(,*)/g, '')} />
-                  )} />
+                      parser={v => v.replace(/₹\s?|(,*)/g, '')}
+                    />
+                  )}
+                />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="GST Amount (₹)">
-                <Controller name="gstAmount" control={control}
+              <Form.Item label="SGST (₹)">
+                <Controller
+                  name="sgstAmount" control={control}
                   render={({ field }) => (
-                    <InputNumber {...field} min={0} precision={2} style={{ width: '100%' }}
+                    <InputNumber
+                      {...field} min={0} precision={2} style={{ width: '100%' }}
+                      onChange={handleSgstChange}
                       formatter={v => `₹ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                      parser={v => v.replace(/₹\s?|(,*)/g, '')} />
-                  )} />
+                      parser={v => v.replace(/₹\s?|(,*)/g, '')}
+                    />
+                  )}
+                />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="TDS (%)">
-                <Controller name="tdsPercent" control={control}
+              <Form.Item label="IGST (₹)">
+                <Controller
+                  name="igstAmount" control={control}
                   render={({ field }) => (
-                    <InputNumber {...field} min={0} max={100} precision={2} style={{ width: '100%' }}
-                      formatter={v => `${v}%`} parser={v => v.replace('%', '')} />
-                  )} />
+                    <InputNumber
+                      {...field} min={0} precision={2} style={{ width: '100%' }}
+                      onChange={handleIgstChange}
+                      formatter={v => `₹ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      parser={v => v.replace(/₹\s?|(,*)/g, '')}
+                    />
+                  )}
+                />
               </Form.Item>
             </Col>
           </Row>
 
+          {/* ✅ CHANGED: Hindi → English */}
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Filling CGST will auto-mirror SGST and set IGST to 0.
+            Filling IGST will set CGST and SGST to 0.
+          </Text>
+
           <Divider />
-          <Row justify="end">
-            <Col span={10}>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {[['Amount', amount], ['GST', gstAmount], ['Total', totalAmount], ['TDS Deduction', -tdsAmount]]
-                  .map(([label, val]) => (
-                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary">{label}</Text>
-                      <Text>{val < 0 ? '-' : ''}₹{Math.abs(Number(val))
-                        .toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
-                    </div>
-                  ))}
-                <Divider style={{ margin: '4px 0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text strong>Payable Amount</Text>
-                  <Text strong style={{ color: '#0057FF' }}>
-                    ₹{payableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </Text>
-                </div>
-              </Space>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="TDS (%)">
+                <Controller
+                  name="tdsPercent" control={control}
+                  render={({ field }) => (
+                    <InputNumber
+                      {...field} min={0} max={100} precision={2} style={{ width: '100%' }}
+                      formatter={v => `${v}%`}
+                      parser={v => v.replace('%', '')}
+                    />
+                  )}
+                />
+              </Form.Item>
+              {/* ✅ CHANGED: Hindi → English */}
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                TDS applies only on base Amount, not on GST.
+              </Text>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={24}>
+              <Form.Item label="Notes">
+                <Controller
+                  name="notes" control={control}
+                  render={({ field }) => <Input.TextArea {...field} rows={2} />}
+                />
+              </Form.Item>
             </Col>
           </Row>
         </Card>
 
-        <Space>
-          <Button type="primary" htmlType="submit" loading={isSubmitting}>
-            {isEdit ? 'Update Vendor Bill' : 'Create Vendor Bill'}
-          </Button>
-          <Button onClick={() => navigate('/vendor-bills')}>Cancel</Button>
-        </Space>
+        <Card title="Summary" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 400, marginLeft: 'auto' }}>
+            <Row justify="space-between"><Text>Amount</Text><Text>{fmt(amt)}</Text></Row>
+            {c > 0 && <Row justify="space-between"><Text type="secondary">CGST</Text><Text type="secondary">{fmt(c)}</Text></Row>}
+            {s > 0 && <Row justify="space-between"><Text type="secondary">SGST</Text><Text type="secondary">{fmt(s)}</Text></Row>}
+            {i > 0 && <Row justify="space-between"><Text type="secondary">IGST</Text><Text type="secondary">{fmt(i)}</Text></Row>}
+            <Row justify="space-between"><Text>Total GST</Text><Text>{fmt(gstTotal)}</Text></Row>
+            <Divider style={{ margin: '4px 0' }} />
+            <Row justify="space-between">
+              <Text strong style={{ fontSize: 15 }}>Total Amount</Text>
+              <Text strong style={{ fontSize: 15 }}>{fmt(totalAmount)}</Text>
+            </Row>
+            <Row justify="space-between">
+              <Text style={{ color: '#ff4d4f' }}>TDS ({tp}% on Amount)</Text>
+              <Text style={{ color: '#ff4d4f' }}>- {fmt(tdsAmount)}</Text>
+            </Row>
+            <Divider style={{ margin: '4px 0' }} />
+            <Row justify="space-between">
+              <Text strong style={{ fontSize: 16, color: '#0057FF' }}>Payable Amount</Text>
+              <Text strong style={{ fontSize: 16, color: '#0057FF' }}>{fmt(payableAmount)}</Text>
+            </Row>
+          </div>
+        </Card>
+
+        <Card>
+          <Space>
+            <Button type="primary" htmlType="submit" loading={submitting}>
+              {isEdit ? 'Update Vendor Bill' : 'Create Vendor Bill'}
+            </Button>
+            <Button onClick={() => navigate('/vendor-bills')}>Cancel</Button>
+          </Space>
+        </Card>
       </Form>
     </div>
   )

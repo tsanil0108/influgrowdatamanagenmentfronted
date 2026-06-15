@@ -7,7 +7,14 @@ const STATUS_COLORS = {
   PARTIAL: 'orange',
   PAID: 'green',
   CANCELLED: 'default',
+  ISSUED: 'red',
 }
+
+const redIfCredit = (value, row) => (
+  <span style={{ color: row.invoice_type === 'CREDIT_NOTE' ? '#ff4d4f' : undefined }}>
+    {formatINR(value)}
+  </span>
+)
 
 const columns = [
   {
@@ -15,6 +22,20 @@ const columns = [
     dataIndex: 'invoice_number',
     key: 'invoice_number',
     width: 150,
+    render: (v, row) => (
+      <span style={{ color: row.invoice_type === 'CREDIT_NOTE' ? '#ff4d4f' : undefined, fontWeight: row.invoice_type === 'CREDIT_NOTE' ? 600 : 400 }}>
+        {v}
+      </span>
+    ),
+  },
+  {
+    title: 'Type',
+    dataIndex: 'invoice_type',
+    key: 'invoice_type',
+    width: 110,
+    render: (v) => v === 'CREDIT_NOTE'
+      ? <Tag color="red">Credit Note</Tag>
+      : <Tag color="blue">Invoice</Tag>,
   },
   {
     title: 'Client',
@@ -48,7 +69,7 @@ const columns = [
     key: 'subtotal',
     width: 140,
     align: 'right',
-    render: formatINR,
+    render: redIfCredit,
   },
   {
     title: 'CGST (₹)',
@@ -56,7 +77,7 @@ const columns = [
     key: 'cgst_amount',
     width: 120,
     align: 'right',
-    render: formatINR,
+    render: redIfCredit,
   },
   {
     title: 'SGST (₹)',
@@ -64,7 +85,7 @@ const columns = [
     key: 'sgst_amount',
     width: 120,
     align: 'right',
-    render: formatINR,
+    render: redIfCredit,
   },
   {
     title: 'IGST (₹)',
@@ -72,7 +93,7 @@ const columns = [
     key: 'igst_amount',
     width: 120,
     align: 'right',
-    render: formatINR,
+    render: redIfCredit,
   },
   {
     title: 'Total Amount (₹)',
@@ -80,7 +101,7 @@ const columns = [
     key: 'total_amount',
     width: 150,
     align: 'right',
-    render: formatINR,
+    render: redIfCredit,
   },
   {
     title: 'Paid Amount (₹)',

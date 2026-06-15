@@ -15,10 +15,14 @@ export const updateVendorBill = (id, data) =>
 export const updatePaymentStatus = (id, status) =>
   axiosInstance.patch(`/vendor-bills/${id}/payment-status`, { status })
 
+export const deleteVendorBill = (id) =>
+  axiosInstance.delete(`/vendor-bills/${id}`)
+
 export const vendorBillApi = {
   getVendorBills,
   getVendorBillById,
   createVendorBill,
   updateVendorBill,
   updatePaymentStatus,
+  deleteVendorBill,   // ✅ add this line
 }

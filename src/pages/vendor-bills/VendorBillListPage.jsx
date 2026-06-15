@@ -18,7 +18,7 @@ const fmt = v => v != null
   : '-'
 
 const VendorBillListPage = () => {
-  const { message } = App.useApp()   // ✅ Ant Design v5 fix
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const [bills,         setBills]         = useState([])
   const [loading,       setLoading]       = useState(false)
@@ -42,20 +42,11 @@ const VendorBillListPage = () => {
   }
 
   const handleDelete = async (id) => {
-    // 🔍 DEBUG LOGS — remove once issue is found
-    console.log('Deleting id:', id, 'type:', typeof id)
-    console.log('deleteVendorBill type:', typeof vendorBillApi.deleteVendorBill)
-
     try {
       await vendorBillApi.deleteVendorBill(id)
       message.success('Vendor bill cancelled')
       fetchBills()
     } catch (err) {
-      console.error('Delete error FULL:', err)
-      console.error('message:', err.message)
-      console.error('code:', err.code)
-      console.error('name:', err.name)
-      console.error('stack:', err.stack)
       message.error(err.response?.data?.message || 'Failed to cancel vendor bill')
     }
   }
@@ -63,19 +54,32 @@ const VendorBillListPage = () => {
   useEffect(() => { fetchBills() }, [showCancelled])
 
   const columns = [
-    { title: 'Booking Ref.', dataIndex: 'bookingReference', key: 'bookingReference', width: 150 },
-    { title: 'Client',       dataIndex: 'clientName',       key: 'clientName',       width: 160 },
-    { title: 'Invoice',      dataIndex: 'invoiceNumber',    key: 'invoiceNumber',    width: 140,
+    { title: 'Booking Ref.', dataIndex: 'bookingReference', key: 'bookingReference', width: 140 },
+    { title: 'Client',       dataIndex: 'clientName',       key: 'clientName',       width: 150 },
+    { title: 'Invoice',      dataIndex: 'invoiceNumber',    key: 'invoiceNumber',    width: 130,
       render: v => v || <span style={{ color: '#aaa' }}>—</span> },
-    { title: 'Vendor',       dataIndex: 'vendorName',       key: 'vendorName',       width: 160 },
-    { title: 'Bill Date',    dataIndex: 'billDate',         key: 'billDate',         width: 120,
+    { title: 'Vendor',       dataIndex: 'vendorName',       key: 'vendorName',       width: 150 },
+    { title: 'Bill Date',    dataIndex: 'billDate',         key: 'billDate',         width: 110,
       render: d => d ? dayjs(d).format('DD MMM YYYY') : '-' },
-    { title: 'Amount (₹)',  dataIndex: 'amount',        key: 'amount',        width: 130, align: 'right', render: fmt },
-    { title: 'GST (₹)',     dataIndex: 'gstAmount',     key: 'gstAmount',     width: 110, align: 'right', render: fmt },
-    { title: 'Payable (₹)', dataIndex: 'payableAmount', key: 'payableAmount', width: 130, align: 'right',
-      render: v => <strong>{fmt(v)}</strong> },
-    { title: 'Status', dataIndex: 'paymentStatus', key: 'paymentStatus', width: 110,
-      render: s => <Tag color={STATUS_COLORS[s] || 'default'}>{s || '-'}</Tag> },
+    { title: 'Amount (₹)',    dataIndex: 'amount',      key: 'amount',      width: 120, align: 'right', render: fmt },
+    { title: 'CGST (₹)',     dataIndex: 'cgstAmount',  key: 'cgstAmount',  width: 100, align: 'right', render: fmt },
+    { title: 'SGST (₹)',     dataIndex: 'sgstAmount',  key: 'sgstAmount',  width: 100, align: 'right', render: fmt },
+    { title: 'IGST (₹)',     dataIndex: 'igstAmount',  key: 'igstAmount',  width: 100, align: 'right', render: fmt },
+    { title: 'Total GST (₹)', dataIndex: 'gstAmount',  key: 'gstAmount',   width: 110, align: 'right', render: fmt },
+    {
+      title: 'TDS (₹)', dataIndex: 'tdsAmount', key: 'tdsAmount', width: 100, align: 'right',
+      render: v => Number(v) > 0
+        ? <span style={{ color: '#ff4d4f' }}>-{fmt(v)}</span>
+        : fmt(v)
+    },
+    {
+      title: 'Payable (₹)', dataIndex: 'payableAmount', key: 'payableAmount', width: 130, align: 'right',
+      render: v => <strong>{fmt(v)}</strong>
+    },
+    {
+      title: 'Status', dataIndex: 'paymentStatus', key: 'paymentStatus', width: 110,
+      render: s => <Tag color={STATUS_COLORS[s] || 'default'}>{s || '-'}</Tag>
+    },
     {
       title: 'Actions', key: 'actions', width: 100, align: 'center', fixed: 'right',
       render: (_, record) => {
@@ -94,7 +98,7 @@ const VendorBillListPage = () => {
             {!isCancelled && (
               <Popconfirm
                 title="Cancel this vendor bill?"
-                description="Bill CANCELLED ho jayega. Bank entries safe rahenge."
+                description="This bill will be CANCELLED. Bank entries will remain safe."
                 onConfirm={() => handleDelete(record.id)}
                 okText="Cancel Bill"
                 okButtonProps={{ danger: true }}
@@ -154,7 +158,7 @@ const VendorBillListPage = () => {
           columns={columns}
           dataSource={filtered}
           loading={loading}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1700 }}
           rowClassName={record =>
             record.paymentStatus === 'CANCELLED' ? 'cancelled-row' : ''
           }

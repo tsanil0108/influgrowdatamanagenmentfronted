@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Space, Popconfirm, message } from 'antd'
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { Button, Space, Popconfirm, message, Tag } from 'antd'
+import { EditOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import DataTable from '../../../components/common/DataTable'
 import PageHeader from '../../../components/common/PageHeader'
 import { bankApi } from '../../../api/bankApi'
@@ -32,8 +32,18 @@ const BankListPage = () => {
       await bankApi.deleteBank(id)
       message.success('Bank account deleted')
       fetchBanks()
-    } catch {
-      message.error('Failed to delete bank account')
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Failed to delete bank account')
+    }
+  }
+
+  const handleSetActive = async (id) => {
+    try {
+      await bankApi.setActiveBank(id)
+      message.success('Active bank account updated — this bank will now appear on invoices')
+      fetchBanks()
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Failed to set active bank')
     }
   }
 
@@ -42,6 +52,23 @@ const BankListPage = () => {
     { title: 'Account Number', dataIndex: 'accountNumber', key: 'accountNumber', width: 180 },
     { title: 'IFSC Code',      dataIndex: 'ifscCode',      key: 'ifscCode',      width: 130 },
     { title: 'Branch Address', dataIndex: 'branchAddress', key: 'branchAddress', ellipsis: true },
+    {
+      title: 'Status', dataIndex: 'isActive', key: 'isActive', width: 160, align: 'center',
+      render: (isActive, record) =>
+        isActive
+          ? <Tag icon={<CheckCircleOutlined />} color="green">Active (on Invoice)</Tag>
+          : (
+            <Popconfirm
+              title="Set as active bank?"
+              description="Yeh bank ab invoices par dikhega, aur dusra active bank deactivate ho jayega."
+              okText="Yes, Set Active"
+              cancelText="Cancel"
+              onConfirm={() => handleSetActive(record.id)}
+            >
+              <Button size="small">Set Active</Button>
+            </Popconfirm>
+          )
+    },
     {
       title: 'Actions', key: 'actions', width: 110, align: 'center',
       render: (_, r) => (
@@ -53,13 +80,16 @@ const BankListPage = () => {
           />
           <Popconfirm
             title="Delete Bank Account?"
-            description="Are you sure? This action cannot be undone."
+            description={r.isActive
+              ? "Yeh active bank hai — pehle koi doosra bank active karo."
+              : "Are you sure? This action cannot be undone."}
             okText="Yes, Delete"
             cancelText="Cancel"
-            okButtonProps={{ danger: true }}
+            okButtonProps={{ danger: true, disabled: r.isActive }}
             onConfirm={() => handleDelete(r.id)}
+            disabled={r.isActive}
           >
-            <Button size="small" danger icon={<DeleteOutlined />} />
+            <Button size="small" danger icon={<DeleteOutlined />} disabled={r.isActive} />
           </Popconfirm>
         </Space>
       )
@@ -70,7 +100,7 @@ const BankListPage = () => {
     <div>
       <PageHeader
         title="Bank Accounts"
-        subtitle="Manage your bank accounts"
+        subtitle="Manage your bank accounts. Only the Active bank's details appear on client invoices."
         onAdd={() => navigate('/banks/new')}
         addLabel="Add Bank"
       />

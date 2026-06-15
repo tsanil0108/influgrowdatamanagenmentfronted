@@ -31,6 +31,7 @@ import EstimateFormPage from './pages/estimates/EstimateFormPage'
 import EstimateDetailPage from './pages/estimates/EstimateDetailPage'
 
 // Invoices
+import CreditNoteFormPage from './pages/invoices/CreditNoteFormPage'
 import InvoiceListPage from './pages/invoices/InvoiceListPage'
 import InvoiceFormPage from './pages/invoices/InvoiceFormPage'
 import InvoiceDetailPage from './pages/invoices/InvoiceDetailPage'
@@ -113,6 +114,7 @@ export default function App() {
             <Route path="estimates/:id"      element={<EstimateDetailPage />} />
 
             {/* Invoices */}
+          <Route path="invoices/credit-note/new" element={<CreditNoteFormPage />} />
             <Route path="invoices"     element={<InvoiceListPage />} />
             <Route path="invoices/new" element={<InvoiceFormPage />} />
             <Route path="invoices/:id" element={<InvoiceDetailPage />} />
