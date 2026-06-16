@@ -1,11 +1,11 @@
 // src/pages/invoices/InvoiceDetailPage.jsx
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Button, Card, Col, Divider, Row, Space,
-  Spin, Table, Tag, Typography, message, Modal
+  Spin, Table, Tag, Typography, message
 } from 'antd'
-import { FilePdfOutlined, ArrowLeftOutlined, PrinterOutlined } from '@ant-design/icons'
+import { FilePdfOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { invoiceApi } from '../../api/invoiceApi'
 
@@ -15,7 +15,6 @@ const STATUS_COLORS = { UNPAID: 'red', PARTIAL: 'orange', PAID: 'green' }
 const InvoiceDetailPage = () => {
   const { id }   = useParams()
   const navigate = useNavigate()
-  const printRef = useRef()
 
   const [invoice,     setInvoice]     = useState(null)
   const [loading,     setLoading]     = useState(true)
@@ -28,6 +27,7 @@ const InvoiceDetailPage = () => {
       .finally(() => setLoading(false))
   }, [id])
 
+  // ── PDF direct download — backend se PDF aayega, browser print nahi ──────
   const handleDownloadPdf = async () => {
     setDownloading(true)
     try {
@@ -40,14 +40,9 @@ const InvoiceDetailPage = () => {
       a.download = `${invoice?.invoiceNumber || 'invoice'}.pdf`
       a.click()
       window.URL.revokeObjectURL(url)
+      message.success('PDF downloaded successfully')
     } catch {
-      Modal.confirm({
-        title:      'PDF download failed',
-        content:    'Server se PDF generate nahi ho rahi. Browser print se PDF save kar sakte ho.',
-        okText:     'Print / Save as PDF',
-        cancelText: 'Cancel',
-        onOk:       () => window.print(),
-      })
+      message.error('PDF generate nahi ho rahi, please try again.')
     } finally {
       setDownloading(false)
     }
@@ -87,142 +82,132 @@ const InvoiceDetailPage = () => {
   const balanceDue  = Math.max(0, totalAmount - paidAmount)
 
   return (
-    <>
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          body { margin: 0; }
-        }
-      `}</style>
+    <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
 
-      <div ref={printRef} style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: 20
+      }}>
+        <Space>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/invoices')} />
+          <Title level={4} style={{ margin: 0 }}>{invoice.invoiceNumber}</Title>
+          <Tag color={STATUS_COLORS[invoice.status] || 'default'}>{invoice.status}</Tag>
+        </Space>
 
-        {/* Header */}
-        <div className="no-print" style={{
-          display: 'flex', justifyContent: 'space-between',
-          alignItems: 'center', marginBottom: 20
-        }}>
-          <Space>
-            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/invoices')} />
-            <Title level={4} style={{ margin: 0 }}>{invoice.invoiceNumber}</Title>
-            <Tag color={STATUS_COLORS[invoice.status] || 'default'}>{invoice.status}</Tag>
-          </Space>
-          <Space>
-            <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-              Print
-            </Button>
-            <Button
-              type="primary" icon={<FilePdfOutlined />}
-              loading={downloading} onClick={handleDownloadPdf}
-            >
-              Download PDF
-            </Button>
-          </Space>
-        </div>
+        {/* Sirf PDF download button — no Print button */}
+        <Button
+          type="primary"
+          icon={<FilePdfOutlined />}
+          loading={downloading}
+          onClick={handleDownloadPdf}
+        >
+          Download PDF
+        </Button>
+      </div>
 
-        {/* Info Grid */}
-        <Card style={{ marginBottom: 16 }}>
-          <Row gutter={32}>
-            <Col xs={24} sm={12}>
-              <InfoRow label="Client"          value={invoice.clientName} />
-              <InfoRow label="Invoice Date"    value={invoice.invoiceDate
-                ? dayjs(invoice.invoiceDate).format('DD MMM YYYY') : '-'} />
-              <InfoRow label="GST Type"        value={invoice.gstType} />
-            </Col>
-            <Col xs={24} sm={12}>
-              <InfoRow label="Campaign"        value={invoice.campaignName} />
-              <InfoRow label="Due Date"        value={invoice.dueDate
-                ? dayjs(invoice.dueDate).format('DD MMM YYYY') : '-'} />
-              <InfoRow label="Source Estimate" value={invoice.estimateNumber} />
-            </Col>
-          </Row>
-        </Card>
+      {/* Info Grid */}
+      <Card style={{ marginBottom: 16 }}>
+        <Row gutter={32}>
+          <Col xs={24} sm={12}>
+            <InfoRow label="Client"          value={invoice.clientName} />
+            <InfoRow label="Invoice Date"    value={invoice.invoiceDate
+              ? dayjs(invoice.invoiceDate).format('DD MMM YYYY') : '-'} />
+            <InfoRow label="GST Type"        value={invoice.gstType} />
+          </Col>
+          <Col xs={24} sm={12}>
+            <InfoRow label="Campaign"        value={invoice.campaignName} />
+            <InfoRow label="Due Date"        value={invoice.dueDate
+              ? dayjs(invoice.dueDate).format('DD MMM YYYY') : '-'} />
+            <InfoRow label="Source Estimate" value={invoice.estimateNumber} />
+          </Col>
+        </Row>
+      </Card>
 
-        {/* Line Items */}
-        <Card title="Line Items" style={{ marginBottom: 16 }}>
-          <Table
-            dataSource={invoice.lineItems || []}
-            columns={lineItemColumns}
-            rowKey="id"
-            pagination={false}
-            size="small"
-          />
-        </Card>
+      {/* Line Items */}
+      <Card title="Line Items" style={{ marginBottom: 16 }}>
+        <Table
+          dataSource={invoice.lineItems || []}
+          columns={lineItemColumns}
+          rowKey="id"
+          pagination={false}
+          size="small"
+        />
+      </Card>
 
-        {/* Totals */}
-        <Card>
-          <Row justify="end">
-            <Col xs={24} sm={14} md={12}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Totals */}
+      <Card>
+        <Row justify="end">
+          <Col xs={24} sm={14} md={12}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text>Subtotal (without GST)</Text>
-                  <Text>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>Subtotal (without GST)</Text>
+                <Text>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
+              </div>
 
-                {invoice.gstType === 'CGST_SGST' ? (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary">CGST ({invoice.cgstRate}%)</Text>
-                      <Text type="secondary">
-                        ₹{cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary">SGST ({invoice.sgstRate}%)</Text>
-                      <Text type="secondary">
-                        ₹{sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </Text>
-                    </div>
-                  </>
-                ) : (
+              {invoice.gstType === 'CGST_SGST' ? (
+                <>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text type="secondary">IGST ({invoice.igstRate}%)</Text>
+                    <Text type="secondary">CGST ({invoice.cgstRate}%)</Text>
                     <Text type="secondary">
-                      ₹{igstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹{cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </Text>
                   </div>
-                )}
-
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text type="secondary">SGST ({invoice.sgstRate}%)</Text>
+                    <Text type="secondary">
+                      ₹{sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </Text>
+                  </div>
+                </>
+              ) : (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text>Total GST</Text>
-                  <Text>₹{totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
-                </div>
-
-                <Divider style={{ margin: '4px 0' }} />
-
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text strong style={{ fontSize: 16 }}>Grand Total</Text>
-                  <Text strong style={{ fontSize: 16, color: '#0057FF' }}>
-                    ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  <Text type="secondary">IGST ({invoice.igstRate}%)</Text>
+                  <Text type="secondary">
+                    ₹{igstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </Text>
                 </div>
+              )}
 
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text style={{ color: '#52c41a' }}>Paid Amount</Text>
-                  <Text strong style={{ color: '#52c41a' }}>
-                    ₹{paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </Text>
-                </div>
-
-                <Divider style={{ margin: '4px 0' }} />
-
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text strong style={{ fontSize: 15, color: balanceDue <= 0 ? '#52c41a' : '#ff4d4f' }}>
-                    Balance Due
-                  </Text>
-                  <Text strong style={{ fontSize: 15, color: balanceDue <= 0 ? '#52c41a' : '#ff4d4f' }}>
-                    ₹{balanceDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </Text>
-                </div>
-
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>Total GST</Text>
+                <Text>₹{totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
               </div>
-            </Col>
-          </Row>
-        </Card>
 
-      </div>
-    </>
+              <Divider style={{ margin: '4px 0' }} />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text strong style={{ fontSize: 16 }}>Grand Total</Text>
+                <Text strong style={{ fontSize: 16, color: '#0057FF' }}>
+                  ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </Text>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text style={{ color: '#52c41a' }}>Paid Amount</Text>
+                <Text strong style={{ color: '#52c41a' }}>
+                  ₹{paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </Text>
+              </div>
+
+              <Divider style={{ margin: '4px 0' }} />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text strong style={{ fontSize: 15, color: balanceDue <= 0 ? '#52c41a' : '#ff4d4f' }}>
+                  Balance Due
+                </Text>
+                <Text strong style={{ fontSize: 15, color: balanceDue <= 0 ? '#52c41a' : '#ff4d4f' }}>
+                  ₹{balanceDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </Text>
+              </div>
+
+            </div>
+          </Col>
+        </Row>
+      </Card>
+
+    </div>
   )
 }
 

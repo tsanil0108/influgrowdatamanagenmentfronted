@@ -22,9 +22,21 @@ import reportApi from '../../api/reportApi'
 const { Title } = Typography
 const { RangePicker } = DatePicker
 
+// ✅ Backend bhejta hai "dd-MM-yyyy" format me already-formatted string
+// (ya kabhi "-" jab date null ho). Isliye dayjs() ko explicit format
+// bataना zaroori hai, warna ISO-parser fail ho jaata hai aur "Invalid Date" aata hai.
 export const formatDate = (date) => {
-    if (!date) return '-'
-    return dayjs(date).format('DD/MM/YYYY')
+    if (!date || date === '-') return '-'
+
+    // Agar already DD-MM-YYYY format me string hai (backend se aaya hua)
+    const parsed = dayjs(date, ['DD-MM-YYYY', 'YYYY-MM-DD'], true)
+    if (parsed.isValid()) {
+        return parsed.format('DD/MM/YYYY')
+    }
+
+    // Fallback — generic parse (Date objects, ISO strings, etc.)
+    const fallback = dayjs(date)
+    return fallback.isValid() ? fallback.format('DD/MM/YYYY') : '-'
 }
 
 export const formatINR = (amount) => {
@@ -181,7 +193,7 @@ export const ReportPage = ({
                                 type="primary"
                                 icon={<DownloadOutlined />}
                                 onClick={exportExcel}
-                                loading={exporting}   // ✅ loading state on export button
+                                loading={exporting}
                             >
                                 Export
                             </Button>

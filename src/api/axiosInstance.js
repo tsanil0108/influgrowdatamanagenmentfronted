@@ -8,17 +8,24 @@ const API_URL =
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
+  headers: {
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+  }
 })
 
 // Request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = getToken()
-
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-
+    // Cache bust — har request unique hogi
+    config.params = {
+      ...config.params,
+      _t: Date.now()
+    }
     return config
   },
   (error) => Promise.reject(error)
@@ -32,7 +39,6 @@ axiosInstance.interceptors.response.use(
       removeToken()
       window.location.href = '/login'
     }
-
     return Promise.reject(error)
   }
 )

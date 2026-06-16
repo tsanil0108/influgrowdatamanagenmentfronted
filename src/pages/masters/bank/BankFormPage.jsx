@@ -1,13 +1,13 @@
-// src/pages/masters/bank/BankFormPage.jsx
 import React, { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { Button, Card, Col, Form, Row, Space, message } from 'antd'
+import { Button, Card, Col, Form, Row, Space, App } from 'antd'
 import PageHeader from '../../../components/common/PageHeader'
 import FormInput from '../../../components/common/FormInput'
 import { bankApi } from '../../../api/bankApi'
 
 const BankFormPage = () => {
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const { id }   = useParams()
   const isEdit   = Boolean(id)
@@ -17,7 +17,6 @@ const BankFormPage = () => {
   useEffect(() => {
     if (isEdit) {
       bankApi.getBankById(id).then(res => {
-        // API: { success, message, data: { id, bankName, ... } }
         const b = res.data?.data
         if (b) {
           setValue('bankName',      b.bankName)

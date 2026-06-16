@@ -42,9 +42,11 @@ const columns = [
     title: 'Status',
     dataIndex: 'is_active',
     key: 'is_active',
+    // ✅ Backend "true"/"false" string bhejta hai (columnar report format),
+    // isliye boolean coercion ki jagah string-compare karo.
     render: value => (
-      <Tag color={value ? 'green' : 'red'}>
-        {value ? 'Active' : 'Inactive'}
+      <Tag color={value === 'true' ? 'green' : 'red'}>
+        {value === 'true' ? 'Active' : 'Inactive'}
       </Tag>
     ),
   },
