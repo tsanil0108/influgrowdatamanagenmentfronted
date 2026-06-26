@@ -24,5 +24,5 @@ export const vendorBillApi = {
   createVendorBill,
   updateVendorBill,
   updatePaymentStatus,
-  deleteVendorBill,   // ✅ add this line
+  deleteVendorBill,
 }

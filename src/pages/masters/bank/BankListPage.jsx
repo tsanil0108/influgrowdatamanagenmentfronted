@@ -45,9 +45,9 @@ const BankListPage = () => {
       await bankApi.setActiveBank(id)
       await fetchBanks()
       message.success('Active bank updated!')
-    } catch (_) {
-      await fetchBanks()
-      message.success('Active bank updated!')
+    } catch (err) {
+      console.error('setActive error:', err.response?.data)
+      message.error(err.response?.data?.message || 'Failed to update active bank')
     }
   }
 
