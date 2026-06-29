@@ -23,7 +23,7 @@ const InvoiceFormPage = () => {
       clientId:    null,
       estimateId:  null,
       invoiceDate: dayjs(),
-      dueDate:     dayjs().add(30, 'day'),
+      dueDate:     dayjs(), // ✅ default due date = invoice date (was +30 days)
       lineItems:   [],
     }
   })
@@ -39,6 +39,16 @@ const InvoiceFormPage = () => {
   const watchedItems       = watch('lineItems')
   const selectedEstimateId = watch('estimateId')
   const selectedClientId   = watch('clientId')
+  const invoiceDateValue   = watch('invoiceDate')
+
+  // ✅ NEW: Due Date should default to the Invoice Date, and keep following it,
+  // unless the user has manually picked a different due date themselves.
+  const dueDateTouchedRef = React.useRef(false)
+  useEffect(() => {
+    if (!dueDateTouchedRef.current && invoiceDateValue) {
+      setValue('dueDate', invoiceDateValue)
+    }
+  }, [invoiceDateValue])
 
   // Totals
   const subtotal    = watchedItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
@@ -208,10 +218,11 @@ const InvoiceFormPage = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item label="Due Date">
+              <Form.Item label="Due Date" tooltip="Defaults to the Invoice Date. Pick a different date to override.">
                 <Controller name="dueDate" control={control}
                   render={({ field }) => (
-                    <DatePicker {...field} format="DD/MM/YYYY" style={{ width: '100%' }} />
+                    <DatePicker {...field} format="DD/MM/YYYY" style={{ width: '100%' }}
+                      onChange={(val) => { dueDateTouchedRef.current = true; field.onChange(val) }} />
                   )} />
               </Form.Item>
             </Col>

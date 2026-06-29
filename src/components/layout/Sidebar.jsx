@@ -7,6 +7,7 @@ import {
   DashboardOutlined, TeamOutlined, ShopOutlined, BankOutlined,
   ProjectOutlined, FileTextOutlined, AuditOutlined, FileDoneOutlined,
   WalletOutlined, BarChartOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
+  MinusSquareOutlined,
 } from '@ant-design/icons'
 import logo from '../../assets/logo.png'   // apna file naam yahan daalo e.g. logo.png / logo.svg
 
@@ -25,6 +26,13 @@ const menuItems = [
   },
   { key: '/estimates', icon: <FileTextOutlined />, label: 'Estimates' },
   { key: '/invoices', icon: <AuditOutlined />, label: 'Invoices' },
+  {
+    key: 'credit-note', icon: <MinusSquareOutlined />, label: 'Credit Note',
+    children: [
+      { key: '/invoices/credit-note/new', icon: <MinusSquareOutlined />, label: 'Generate Credit Note' },
+      { key: '/reports/invoices', icon: <BarChartOutlined />, label: 'View Credit Notes' },
+    ],
+  },
   { key: '/vendor-bills', icon: <FileDoneOutlined />, label: 'Vendor Bills' },
   { key: '/bank-entries', icon: <WalletOutlined />, label: 'Bank Entries' },
   { key: '/reports', icon: <BarChartOutlined />, label: 'Reports' },

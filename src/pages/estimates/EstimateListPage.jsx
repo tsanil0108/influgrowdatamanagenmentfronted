@@ -1,12 +1,13 @@
 // src/pages/estimates/EstimateListPage.jsx
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Tag, Space, Popconfirm } from 'antd'
-import { EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { Button, Tag, Space, Popconfirm, App } from 'antd'
+import { EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import DataTable from '../../components/common/DataTable'
 import PageHeader from '../../components/common/PageHeader'
 import { useEstimates } from '../../hooks/useEstimates'
+import { estimateApi } from '../../api/estimateApi'
 
 const STATUS_COLORS = {
   DRAFT:     'default',
@@ -16,6 +17,7 @@ const STATUS_COLORS = {
 }
 
 const EstimateListPage = () => {
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const { list, loading, loadEstimates, removeEstimate } = useEstimates()
 
@@ -28,6 +30,18 @@ const EstimateListPage = () => {
 
   const handleDelete = async (id) => {
     await removeEstimate(id)
+  }
+
+  // ✅ NEW: quick-approve from the list, so an estimate doesn't have to stay
+  // stuck on DRAFT just because nobody opened the detail page to change it.
+  const handleApprove = async (id) => {
+    try {
+      await estimateApi.updateEstimateStatus(id, 'APPROVED')
+      message.success('Estimate approved — now shows on the Purchase Order report')
+      loadEstimates({ page: 0, size: 100 })
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Failed to approve estimate')
+    }
   }
 
   const columns = [
@@ -94,6 +108,15 @@ const EstimateListPage = () => {
             disabled={r.status !== 'DRAFT'}
             onClick={() => navigate(`/estimates/${r.id}/edit`)}
           />
+          {(r.status === 'DRAFT' || r.status === 'SENT') && (
+            <Popconfirm
+              title="Approve estimate?"
+              description="Generates the Purchase Order entry."
+              onConfirm={() => handleApprove(r.id)}
+            >
+              <Button size="small" icon={<CheckCircleOutlined />} />
+            </Popconfirm>
+          )}
           <Popconfirm
             title="Delete Estimate?"
             description="Are you sure? This cannot be undone."

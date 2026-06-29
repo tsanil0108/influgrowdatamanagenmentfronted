@@ -3,9 +3,9 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Button, Card, Col, Descriptions, Divider,
-  Row, Space, Spin, Table, Tag, Typography, message
+  Row, Space, Spin, Table, Tag, Typography, message, Popconfirm
 } from 'antd'
-import { EditOutlined, FilePdfOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { EditOutlined, FilePdfOutlined, ArrowLeftOutlined, SendOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { estimateApi } from '../../api/estimateApi'
 
@@ -23,13 +23,38 @@ const EstimateDetailPage = () => {
   const [estimate,    setEstimate]    = useState(null)
   const [loading,     setLoading]     = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [statusUpdating, setStatusUpdating] = useState(false)
 
-  useEffect(() => {
+  const loadEstimate = () => {
     estimateApi.getEstimateById(id)
       .then(r => setEstimate(r.data?.data))
       .catch(() => message.error('Failed to load estimate'))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadEstimate()
   }, [id])
+
+  // ✅ NEW: status workflow — DRAFT -> SENT -> APPROVED (= PO generated).
+  // Without this there was no way to move an estimate out of DRAFT, so it
+  // always showed "DRAFT" everywhere (lists, invoice dropdown, PO report).
+  const handleStatusChange = async (status) => {
+    setStatusUpdating(true)
+    try {
+      await estimateApi.updateEstimateStatus(id, status)
+      message.success(
+        status === 'APPROVED'
+          ? 'Estimate approved — it will now appear on the Purchase Order report'
+          : `Estimate marked as ${status}`
+      )
+      loadEstimate()
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Failed to update status')
+    } finally {
+      setStatusUpdating(false)
+    }
+  }
 
   const handleDownloadPdf = async () => {
     setDownloading(true)
@@ -90,6 +115,27 @@ const EstimateDetailPage = () => {
           >
             Edit
           </Button>
+          {estimate.status === 'DRAFT' && (
+            <Popconfirm
+              title="Mark this estimate as Sent?"
+              onConfirm={() => handleStatusChange('SENT')}
+            >
+              <Button icon={<SendOutlined />} loading={statusUpdating}>
+                Mark as Sent
+              </Button>
+            </Popconfirm>
+          )}
+          {(estimate.status === 'DRAFT' || estimate.status === 'SENT') && (
+            <Popconfirm
+              title="Approve this estimate?"
+              description="This generates the Purchase Order entry and lets you create an invoice from it."
+              onConfirm={() => handleStatusChange('APPROVED')}
+            >
+              <Button type="primary" ghost icon={<CheckCircleOutlined />} loading={statusUpdating}>
+                Approve (Generate PO)
+              </Button>
+            </Popconfirm>
+          )}
           <Button
             type="primary" icon={<FilePdfOutlined />}
             loading={downloading} onClick={handleDownloadPdf}

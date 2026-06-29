@@ -1,6 +1,5 @@
 import React from 'react'
-import dayjs from 'dayjs'
-import { ReportPage } from './ReportBase'
+import { ReportPage, formatDate } from './ReportBase'
 
 const columns = [
   {
@@ -17,15 +16,13 @@ const columns = [
     title: 'Start Date',
     dataIndex: 'start_date',
     key: 'start_date',
-    render: d =>
-      d ? dayjs(d).format('DD MMM YYYY') : '-',
+    render: formatDate,
   },
   {
     title: 'End Date',
     dataIndex: 'end_date',
     key: 'end_date',
-    render: d =>
-      d ? dayjs(d).format('DD MMM YYYY') : '-',
+    render: formatDate,
   },
 ]
 

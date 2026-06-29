@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card,
   Col,
   Row,
   Typography,
+  Button,
+  message,
 } from 'antd'
 
 import {
@@ -19,7 +21,9 @@ import {
   BarChartOutlined,
   ClockCircleOutlined,
   AlertOutlined,
+  CloudDownloadOutlined,
 } from '@ant-design/icons'
+import backupApi from '../../api/backupApi'
 
 const { Title, Text } = Typography
 
@@ -105,6 +109,32 @@ const REPORTS = [
 
 const ReportsIndexPage = () => {
   const navigate = useNavigate()
+  const [backingUp, setBackingUp] = useState(false)
+
+  // ✅ NEW — downloads a ZIP backup of all data (clients, vendors, campaigns,
+  // estimates, invoices/credit-notes, vendor bills, banks, bank entries).
+  const handleBackup = async () => {
+    setBackingUp(true)
+    try {
+      const res = await backupApi.downloadBackup()
+      const blob = new Blob([res.data], { type: 'application/zip' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '')
+      link.href = url
+      link.setAttribute('download', `influgrow-backup-${stamp}.zip`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      message.success('Backup downloaded')
+    } catch (err) {
+      console.error('Backup error:', err)
+      message.error('Failed to generate backup')
+    } finally {
+      setBackingUp(false)
+    }
+  }
 
   return (
     <div style={{ padding: 24 }}>
@@ -196,6 +226,32 @@ const ReportsIndexPage = () => {
           </Col>
         ))}
       </Row>
+
+      {/* ✅ NEW — Backup section, shown below the reports grid as requested */}
+      <div style={{ marginTop: 32 }}>
+        <Title level={4}>Backup</Title>
+        <Text type="secondary">Download a full backup of your data (clients, vendors, campaigns, estimates, invoices, vendor bills, banks, bank entries)</Text>
+        <Card style={{ borderRadius: 12, marginTop: 12, maxWidth: 480 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div
+              style={{
+                width: 50, height: 50, borderRadius: 12,
+                background: '#0057FF15', color: '#0057FF',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0,
+              }}
+            >
+              <CloudDownloadOutlined />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ display: 'block', fontSize: 15 }}>Download Backup</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>Saves a ZIP file with all your data as of right now</Text>
+            </div>
+            <Button type="primary" icon={<CloudDownloadOutlined />} loading={backingUp} onClick={handleBackup}>
+              Backup
+            </Button>
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }

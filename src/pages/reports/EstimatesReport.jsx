@@ -1,7 +1,6 @@
 import React from 'react'
 import { Tag } from 'antd'
-import dayjs from 'dayjs'
-import { ReportPage } from './ReportBase'
+import { ReportPage, formatDate } from './ReportBase'
 
 const columns = [
   {
@@ -23,8 +22,7 @@ const columns = [
     title: 'Date',
     dataIndex: 'estimate_date',
     key: 'estimate_date',
-    render: d =>
-      d ? dayjs(d).format('DD MMM YYYY') : '-',
+    render: formatDate,
   },
   {
     title: 'Amount',
