@@ -1,5 +1,6 @@
+// src/pages/masters/client/ClientFormPage.jsx
 import React, { useEffect, useState } from 'react'
-import { Card, Form, Input, Select, Row, Col, Button, Space, Divider, Tag } from 'antd'
+import { Card, Form, Input, Select, Row, Col, Button, Space, Divider, Tag, Alert } from 'antd'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useClients } from '../../../hooks/useClients'
 import PageHeader from '../../../components/common/PageHeader'
@@ -17,13 +18,17 @@ export default function ClientFormPage() {
   const { loadClient, saveClient, detail } = useClients()
   const [form] = Form.useForm()
   const [existingDocs, setExistingDocs] = useState([])
+  const [clientCodeError, setClientCodeError] = useState('')
   const isEdit = !!id
 
   useEffect(() => {
     if (isEdit) {
       loadClient(id).then(data => {
         if (data) {
-          form.setFieldsValue(data)
+          form.setFieldsValue({
+            ...data,
+            clientCode: data.clientCode // Show existing code but disabled
+          })
           setExistingDocs(data.documents || [])
         }
       })
@@ -31,6 +36,32 @@ export default function ClientFormPage() {
   }, [id])
 
   const onFinish = async (values) => {
+    // ✅ Client Code validation for new clients
+    if (!isEdit) {
+      if (!values.clientCode) {
+        setClientCodeError('Client Code is required')
+        form.setFields([{
+          name: 'clientCode',
+          errors: ['Client Code is required']
+        }])
+        return
+      }
+      
+      // ✅ Format validation
+      const code = values.clientCode.toUpperCase()
+      if (!/^[A-Z0-9]{2,10}$/.test(code)) {
+        setClientCodeError('Client code must be 2-10 alphanumeric characters (A-Z, 0-9)')
+        form.setFields([{
+          name: 'clientCode',
+          errors: ['Client code must be 2-10 alphanumeric characters (A-Z, 0-9)']
+        }])
+        return
+      }
+      
+      // Clear any previous errors
+      setClientCodeError('')
+    }
+    
     const ok = await saveClient(values, isEdit ? id : null)
     if (ok) navigate('/clients')
   }
@@ -43,6 +74,16 @@ export default function ClientFormPage() {
     await uploadClientDoc(id, formData)
     const data = await loadClient(id)
     if (data) setExistingDocs(data.documents || [])
+  }
+
+  // ✅ Handle client code change - auto uppercase and remove special chars
+  const handleClientCodeChange = (e) => {
+    const value = e.target.value
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 10) // Max 10 characters
+    form.setFieldsValue({ clientCode: value })
+    setClientCodeError('')
   }
 
   return (
@@ -61,9 +102,39 @@ export default function ClientFormPage() {
             >
               <Row gutter={16}>
                 <Col xs={24} md={12}>
-                  <Form.Item name="clientName" label="Client Name" rules={[{ required: true, message: 'Client name is required' }]}>
+                  <Form.Item 
+                    name="clientName" 
+                    label="Client Name" 
+                    rules={[{ required: true, message: 'Client name is required' }]}
+                  >
                     <Input placeholder="Legal name as per PAN" />
                   </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item 
+                    name="clientCode" 
+                    label="Client Code" 
+                    rules={[
+                      { required: !isEdit, message: 'Client code is required' },
+                      { pattern: /^[A-Z0-9]{2,10}$/, message: '2-10 alphanumeric characters (A-Z, 0-9)' }
+                    ]}
+                    tooltip="Unique code for client (e.g. THA01, ANI13, KIN01). Cannot be changed after creation."
+                    validateStatus={clientCodeError ? 'error' : ''}
+                    help={clientCodeError || '2-10 alphanumeric characters (A-Z, 0-9)'}
+                  >
+                    <Input 
+                      placeholder="Enter unique client code" 
+                      disabled={isEdit}
+                      onChange={handleClientCodeChange}
+                      style={{ textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 600 }}
+                      maxLength={10}
+                    />
+                  </Form.Item>
+                  {isEdit && (
+                    <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                      Client code cannot be changed after creation
+                    </div>
+                  )}
                 </Col>
                 <Col xs={24} md={12}>
                   <Form.Item name="contactPerson" label="Contact Person">

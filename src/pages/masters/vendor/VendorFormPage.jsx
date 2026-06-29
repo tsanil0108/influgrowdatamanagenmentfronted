@@ -1,6 +1,7 @@
+// src/pages/masters/vendor/VendorFormPage.jsx
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, Card, Col, Form, Input, Row, Space, Select, message, Divider, Tag } from 'antd'
+import { Button, Card, Col, Form, Input, Row, Space, Select, message, Divider, Tag, Alert } from 'antd'
 import PageHeader from '../../../components/common/PageHeader'
 import FileUpload from '../../../components/common/FileUpload'
 import { vendorApi } from '../../../api/vendorApi'
@@ -15,6 +16,7 @@ const VendorFormPage = () => {
   const isEdit = Boolean(id)
   const [form] = Form.useForm()
   const [existingDocs, setExistingDocs] = useState([])
+  const [vendorCodeError, setVendorCodeError] = useState('')
 
   useEffect(() => {
     if (isEdit) {
@@ -22,19 +24,21 @@ const VendorFormPage = () => {
         const data = r.data?.data
         if (data) {
           form.setFieldsValue({
-            vendor_name:    data.vendorName,
-            contact_person: data.contactPerson,
+            vendorName:     data.vendorName,
+            vendorCode:     data.vendorCode,  // ✅ Show existing code
+            contactPerson:  data.contactPerson,
             mobile:         data.mobile,
             email:          data.email,
             address:        data.address,
             city:           data.city,
             state:          data.state,
-            pin_code:       data.pinCode,
-            pan_number:     data.panNumber,
-            gst_number:     data.gstNumber,
-            bank_name:      data.bankName,
-            account_number: data.accountNumber,
-            ifsc_code:      data.ifscCode,
+            stateCode:      data.stateCode,
+            pinCode:        data.pinCode,
+            panNumber:      data.panNumber,
+            gstNumber:      data.gstNumber,
+            bankName:       data.bankName,
+            accountNumber:  data.accountNumber,
+            ifscCode:       data.ifscCode,
           })
           setExistingDocs(data.documents || [])
         }
@@ -42,30 +46,74 @@ const VendorFormPage = () => {
     }
   }, [id])
 
-  const onFinish = async (values) => {
-    const payload = {
-      vendorName:    values.vendor_name,
-      contactPerson: values.contact_person,
-      mobile:        values.mobile,
-      email:         values.email,
-      address:       values.address,
-      city:          values.city,
-      state:         values.state,
-      pinCode:       values.pin_code,
-      panNumber:     values.pan_number,
-      gstNumber:     values.gst_number,
-      bankName:      values.bank_name,
-      accountNumber: values.account_number,
-      ifscCode:      values.ifsc_code,
-      isActive:      true,
+  const handleStateChange = (stateName) => {
+    const matched = INDIA_STATES.find(s => s.name === stateName)
+    if (matched?.code) {
+      form.setFieldsValue({ stateCode: matched.code })
     }
+  }
+
+  // ✅ Handle vendor code change - auto uppercase and remove special chars
+  const handleVendorCodeChange = (e) => {
+    const value = e.target.value
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 10)
+    form.setFieldsValue({ vendorCode: value })
+    setVendorCodeError('')
+  }
+
+  const onFinish = async (values) => {
+    // ✅ Vendor Code validation for new vendors
+    if (!isEdit) {
+      if (!values.vendorCode) {
+        setVendorCodeError('Vendor Code is required')
+        form.setFields([{
+          name: 'vendorCode',
+          errors: ['Vendor Code is required']
+        }])
+        return
+      }
+      
+      const code = values.vendorCode.toUpperCase()
+      if (!/^[A-Z0-9]{2,10}$/.test(code)) {
+        setVendorCodeError('Vendor code must be 2-10 alphanumeric characters (A-Z, 0-9)')
+        form.setFields([{
+          name: 'vendorCode',
+          errors: ['Vendor code must be 2-10 alphanumeric characters (A-Z, 0-9)']
+        }])
+        return
+      }
+      
+      setVendorCodeError('')
+    }
+
+    const payload = {
+      vendorName:     values.vendorName,
+      vendorCode:     values.vendorCode,  // ✅ Send vendor code
+      contactPerson:  values.contactPerson,
+      mobile:         values.mobile,
+      email:          values.email,
+      address:        values.address,
+      city:           values.city,
+      state:          values.state,
+      stateCode:      values.stateCode,
+      pinCode:        values.pinCode,
+      panNumber:      values.panNumber,
+      gstNumber:      values.gstNumber,
+      bankName:       values.bankName,
+      accountNumber:  values.accountNumber,
+      ifscCode:       values.ifscCode,
+      isActive:       true,
+    }
+
     try {
       if (isEdit) {
         await vendorApi.updateVendor(id, payload)
-        message.success('Vendor updated')
+        message.success('Vendor updated successfully')
       } else {
         await vendorApi.createVendor(payload)
-        message.success('Vendor added')
+        message.success('Vendor added successfully')
       }
       navigate('/vendors')
     } catch (err) {
@@ -97,12 +145,42 @@ const VendorFormPage = () => {
             <Card title="Basic Information" style={{ marginBottom: 16 }}>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="vendor_name" label="Vendor Name" rules={[{ required: true }]}>
+                  <Form.Item 
+                    name="vendorName" 
+                    label="Vendor Name" 
+                    rules={[{ required: true, message: 'Vendor name is required' }]}
+                  >
                     <Input placeholder="Vendor Name" />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="contact_person" label="Contact Person">
+                  <Form.Item 
+                    name="vendorCode" 
+                    label="Vendor Code" 
+                    rules={[
+                      { required: !isEdit, message: 'Vendor code is required' },
+                      { pattern: /^[A-Z0-9]{2,10}$/, message: '2-10 alphanumeric characters (A-Z, 0-9)' }
+                    ]}
+                    tooltip="Unique code for vendor (e.g. VEN01, SUP02). Cannot be changed after creation."
+                    validateStatus={vendorCodeError ? 'error' : ''}
+                    help={vendorCodeError || '2-10 alphanumeric characters (A-Z, 0-9)'}
+                  >
+                    <Input 
+                      placeholder="Enter unique vendor code" 
+                      disabled={isEdit}
+                      onChange={handleVendorCodeChange}
+                      style={{ textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 600 }}
+                      maxLength={10}
+                    />
+                  </Form.Item>
+                  {isEdit && (
+                    <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                      Vendor code cannot be changed after creation
+                    </div>
+                  )}
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="contactPerson" label="Contact Person">
                     <Input placeholder="Contact Person" />
                   </Form.Item>
                 </Col>
@@ -124,18 +202,33 @@ const VendorFormPage = () => {
                 <Input.TextArea rows={2} />
               </Form.Item>
               <Row gutter={16}>
-                <Col span={8}>
+                <Col span={6}>
                   <Form.Item name="city" label="City"><Input /></Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
                   <Form.Item name="state" label="State">
-                    <Select showSearch optionFilterProp="children" placeholder="Select state" allowClear>
+                    <Select
+                      showSearch
+                      optionFilterProp="children"
+                      placeholder="Select state"
+                      allowClear
+                      onChange={handleStateChange}
+                    >
                       {INDIA_STATES.map(s => <Option key={s.code} value={s.name}>{s.name}</Option>)}
                     </Select>
                   </Form.Item>
                 </Col>
-                <Col span={8}>
-                  <Form.Item name="pin_code" label="PIN Code" rules={[{ pattern: /^\d{6}$/, message: 'Must be 6 digits' }]}>
+                <Col span={6}>
+                  <Form.Item
+                    name="stateCode"
+                    label="State Code"
+                    rules={[{ pattern: /^\d{1,2}$/, message: 'Must be 1-2 digits' }]}
+                  >
+                    <Input maxLength={2} placeholder="e.g. 27" />
+                  </Form.Item>
+                </Col>
+                <Col span={6}>
+                  <Form.Item name="pinCode" label="PIN Code" rules={[{ pattern: /^\d{6}$/, message: 'Must be 6 digits' }]}>
                     <Input maxLength={6} />
                   </Form.Item>
                 </Col>
@@ -145,12 +238,12 @@ const VendorFormPage = () => {
             <Card title="Tax Information" style={{ marginBottom: 16 }}>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="pan_number" label="PAN Number">
+                  <Form.Item name="panNumber" label="PAN Number">
                     <Input placeholder="ABCDE1234F" maxLength={10} style={{ textTransform: 'uppercase' }} />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="gst_number" label="GST Number">
+                  <Form.Item name="gstNumber" label="GST Number">
                     <Input placeholder="27ABCDE1234F1Z5" maxLength={15} style={{ textTransform: 'uppercase' }} />
                   </Form.Item>
                 </Col>
@@ -160,13 +253,13 @@ const VendorFormPage = () => {
             <Card title="Bank Details" style={{ marginBottom: 16 }}>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="bank_name" label="Bank Name"><Input /></Form.Item>
+                  <Form.Item name="bankName" label="Bank Name"><Input /></Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="account_number" label="Account Number"><Input /></Form.Item>
+                  <Form.Item name="accountNumber" label="Account Number"><Input /></Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="ifsc_code" label="IFSC Code">
+                  <Form.Item name="ifscCode" label="IFSC Code">
                     <Input maxLength={11} style={{ textTransform: 'uppercase' }} />
                   </Form.Item>
                 </Col>

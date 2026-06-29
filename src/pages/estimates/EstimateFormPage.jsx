@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useForm, Controller, useFieldArray } from 'react-hook-form'
 import {
   Form, Button, Card, Col, Row, Space, Input,
-  InputNumber, DatePicker, Select, Divider, message, Typography
+  InputNumber, DatePicker, Select, Divider, message, Typography, Tag
 } from 'antd'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -17,8 +17,8 @@ import { campaignApi } from '../../api/campaignApi'
 const { Text } = Typography
 const { Option } = Select
 
-const GST_RATE = 18
-const CGST_SGST_RATE = 9
+// Company GST state code (Maharashtra = 27)
+const COMPANY_STATE_CODE = '27'
 
 const EstimateFormPage = () => {
   const navigate = useNavigate()
@@ -38,11 +38,17 @@ const EstimateFormPage = () => {
 
   const { fields, append, remove } = useFieldArray({ control, name: 'lineItems' })
 
-  const [clients,   setClients]   = useState([])
-  const [campaigns, setCampaigns] = useState([])
+  const [clients,         setClients]         = useState([])
+  const [campaigns,       setCampaigns]       = useState([])
+  const [clientsMap,      setClientsMap]      = useState({}) // id → client object
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false)
 
-  const lineItems = watch('lineItems')
-  const gstType   = watch('gstType')
+  const lineItems      = watch('lineItems')
+  const gstType        = watch('gstType')
+  const selectedClient = watch('clientId')
+
+  const GST_RATE      = 18
+  const CGST_SGST_RATE = 9
 
   const subtotal   = lineItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
   const cgstAmount = gstType === 'CGST_SGST' ? subtotal * CGST_SGST_RATE / 100 : 0
@@ -50,16 +56,46 @@ const EstimateFormPage = () => {
   const igstAmount = gstType === 'IGST'       ? subtotal * GST_RATE / 100       : 0
   const total      = subtotal + cgstAmount + sgstAmount + igstAmount
 
+  // Load all clients on mount
   useEffect(() => {
     clientApi.getClients({ page: 0, size: 1000 }).then(r => {
       const list = r.data?.data?.content ?? r.data?.data ?? []
-      setClients(Array.isArray(list) ? list : [])
-    })
-    campaignApi.getCampaigns({ page: 0, size: 1000 }).then(r => {
-      const list = r.data?.data?.content ?? r.data?.data ?? []
-      setCampaigns(Array.isArray(list) ? list : [])
+      const arr = Array.isArray(list) ? list : []
+      setClients(arr)
+      // Build map for quick lookup
+      const map = {}
+      arr.forEach(c => { map[c.id] = c })
+      setClientsMap(map)
     })
   }, [])
+
+  // ✅ Auto-fetch campaigns when client changes, and auto-detect GST type from stateCode
+  useEffect(() => {
+    if (!selectedClient) {
+      setCampaigns([])
+      setValue('campaignId', null)
+      return
+    }
+
+    // Auto GST type from client stateCode
+    const client = clientsMap[selectedClient]
+    if (client?.stateCode) {
+      const gst = client.stateCode === COMPANY_STATE_CODE ? 'CGST_SGST' : 'IGST'
+      setValue('gstType', gst)
+    }
+
+    // Fetch campaigns for this client
+    setLoadingCampaigns(true)
+    campaignApi.getCampaigns({ clientId: selectedClient, page: 0, size: 1000 })
+      .then(r => {
+        const list = r.data?.data?.content ?? r.data?.data ?? []
+        setCampaigns(Array.isArray(list) ? list : [])
+      })
+      .catch(() => setCampaigns([]))
+      .finally(() => setLoadingCampaigns(false))
+
+    setValue('campaignId', null)
+  }, [selectedClient, clientsMap])
 
   useEffect(() => {
     if (isEdit) {
@@ -110,6 +146,8 @@ const EstimateFormPage = () => {
     }
   }
 
+  const selectedClientObj = clientsMap[selectedClient]
+
   return (
     <div>
       <PageHeader
@@ -129,11 +167,32 @@ const EstimateFormPage = () => {
               />
             </Col>
             <Col span={12}>
-              <FormSelect
-                name="campaignId" label="Campaign (optional)" control={control}
-                options={campaigns.map(c => ({ value: c.id, label: c.campaignName }))}
-                placeholder="Select campaign"
-              />
+              {/* ✅ Campaign auto-fetched from selected client */}
+              <Form.Item label={
+                <Space size={4}>
+                  <span>Campaign</span>
+                  {!selectedClient && <Text type="secondary" style={{ fontSize: 12 }}>(select client first)</Text>}
+                  {loadingCampaigns && <Text type="secondary" style={{ fontSize: 12 }}>Loading...</Text>}
+                </Space>
+              }>
+                <Controller name="campaignId" control={control}
+                  render={({ field }) => (
+                    <Select
+                      {...field}
+                      allowClear
+                      showSearch
+                      disabled={!selectedClient}
+                      loading={loadingCampaigns}
+                      placeholder={selectedClient ? 'Select campaign (optional)' : 'Select client first'}
+                      optionFilterProp="children"
+                      style={{ width: '100%' }}
+                    >
+                      {campaigns.map(c => (
+                        <Option key={c.id} value={c.id}>{c.campaignName}</Option>
+                      ))}
+                    </Select>
+                  )} />
+              </Form.Item>
             </Col>
           </Row>
 
@@ -148,7 +207,18 @@ const EstimateFormPage = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item label="GST Type" required>
+              <Form.Item
+                label={
+                  <Space size={4}>
+                    <span>GST Type</span>
+                    {selectedClientObj?.stateCode && (
+                      <Tag color={gstType === 'CGST_SGST' ? 'green' : 'orange'} style={{ fontSize: 11 }}>
+                        Auto: {gstType === 'CGST_SGST' ? 'Same State (MH)' : `Inter-state (${selectedClientObj.state || selectedClientObj.stateCode})`}
+                      </Tag>
+                    )}
+                  </Space>
+                }
+              >
                 <Controller name="gstType" control={control}
                   render={({ field }) => (
                     <Select {...field} style={{ width: '100%' }}>

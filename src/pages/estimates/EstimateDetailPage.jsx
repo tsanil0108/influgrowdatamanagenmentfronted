@@ -5,7 +5,14 @@ import {
   Button, Card, Col, Descriptions, Divider,
   Row, Space, Spin, Table, Tag, Typography, message, Popconfirm
 } from 'antd'
-import { EditOutlined, FilePdfOutlined, ArrowLeftOutlined, SendOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { 
+  EditOutlined, 
+  FilePdfOutlined, 
+  ArrowLeftOutlined, 
+  SendOutlined, 
+  CheckCircleOutlined,
+  EyeOutlined  // ✅ Added EyeOutlined
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { estimateApi } from '../../api/estimateApi'
 
@@ -36,9 +43,7 @@ const EstimateDetailPage = () => {
     loadEstimate()
   }, [id])
 
-  // ✅ NEW: status workflow — DRAFT -> SENT -> APPROVED (= PO generated).
-  // Without this there was no way to move an estimate out of DRAFT, so it
-  // always showed "DRAFT" everywhere (lists, invoice dropdown, PO report).
+  // Status workflow
   const handleStatusChange = async (status) => {
     setStatusUpdating(true)
     try {
@@ -56,18 +61,39 @@ const EstimateDetailPage = () => {
     }
   }
 
+  // ✅ Download PDF
   const handleDownloadPdf = async () => {
     setDownloading(true)
     try {
       const res = await estimateApi.downloadEstimatePdf(id)
-      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      if (blob.size < 100) throw new Error('Empty PDF received')
+      const url = window.URL.createObjectURL(blob)
       const a   = document.createElement('a')
       a.href     = url
       a.download = `${estimate?.estimateNumber || 'estimate'}.pdf`
       a.click()
       window.URL.revokeObjectURL(url)
+      message.success('PDF downloaded successfully')
     } catch {
       message.error('PDF download failed')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  // ✅ View PDF in new tab
+  const handleViewPdf = async () => {
+    setDownloading(true)
+    try {
+      const res = await estimateApi.downloadEstimatePdf(id)
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      if (blob.size < 100) throw new Error('Empty PDF received')
+      const url = window.URL.createObjectURL(blob)
+      window.open(url, '_blank')
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000)
+    } catch {
+      message.error('PDF view nahi ho rahi, please try again.')
     } finally {
       setDownloading(false)
     }
@@ -100,14 +126,25 @@ const EstimateDetailPage = () => {
       {/* Top bar */}
       <div style={{
         display: 'flex', justifyContent: 'space-between',
-        alignItems: 'center', marginBottom: 20
+        alignItems: 'center', marginBottom: 20, flexWrap: 'wrap',
+        gap: 8
       }}>
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/estimates')} />
           <Title level={4} style={{ margin: 0 }}>{estimate.estimateNumber}</Title>
           <Tag color={STATUS_COLORS[estimate.status]}>{estimate.status}</Tag>
         </Space>
-        <Space>
+        <Space wrap>
+          {/* ✅ View Button - Open PDF in new tab */}
+          <Button
+            icon={<EyeOutlined />}
+            onClick={handleViewPdf}
+            loading={downloading}
+          >
+            View
+          </Button>
+
+          {/* Edit Button - Only for DRAFT */}
           <Button
             icon={<EditOutlined />}
             disabled={estimate.status !== 'DRAFT'}
@@ -115,6 +152,8 @@ const EstimateDetailPage = () => {
           >
             Edit
           </Button>
+
+          {/* Mark as Sent - Only for DRAFT */}
           {estimate.status === 'DRAFT' && (
             <Popconfirm
               title="Mark this estimate as Sent?"
@@ -125,6 +164,8 @@ const EstimateDetailPage = () => {
               </Button>
             </Popconfirm>
           )}
+
+          {/* Approve - For DRAFT or SENT */}
           {(estimate.status === 'DRAFT' || estimate.status === 'SENT') && (
             <Popconfirm
               title="Approve this estimate?"
@@ -136,9 +177,13 @@ const EstimateDetailPage = () => {
               </Button>
             </Popconfirm>
           )}
+
+          {/* Download PDF Button */}
           <Button
-            type="primary" icon={<FilePdfOutlined />}
-            loading={downloading} onClick={handleDownloadPdf}
+            type="primary" 
+            icon={<FilePdfOutlined />}
+            loading={downloading} 
+            onClick={handleDownloadPdf}
           >
             Download PDF
           </Button>

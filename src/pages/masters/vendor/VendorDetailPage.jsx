@@ -1,3 +1,4 @@
+// src/pages/masters/vendor/VendorDetailPage.jsx
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card, Descriptions, Space, Spin, Tag, Typography, message, Modal } from 'antd'
@@ -35,7 +36,12 @@ const VendorDetailPage = () => {
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/vendors')} />
           <Title level={4} style={{ margin: 0 }}>{vendor.vendorName}</Title>
-          <Tag color={vendor.isActive ? 'green' : 'default'}>{vendor.isActive ? 'Active' : 'Inactive'}</Tag>
+          <Tag color="blue" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+            {vendor.vendorCode}
+          </Tag>
+          <Tag color={vendor.isActive ? 'green' : 'default'}>
+            {vendor.isActive ? 'Active' : 'Inactive'}
+          </Tag>
         </Space>
         <Button icon={<EditOutlined />} onClick={() => navigate(`/vendors/${id}/edit`)}>Edit</Button>
       </div>
@@ -43,6 +49,11 @@ const VendorDetailPage = () => {
       {/* Basic Info */}
       <Card title="Basic Information" style={{ marginBottom: 16 }}>
         <Descriptions bordered column={2} size="middle">
+          <Descriptions.Item label="Vendor Code">
+            <Tag color="blue" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+              {vendor.vendorCode}
+            </Tag>
+          </Descriptions.Item>
           <Descriptions.Item label="Vendor Name">{vendor.vendorName}</Descriptions.Item>
           <Descriptions.Item label="Contact Person">{vendor.contactPerson || '-'}</Descriptions.Item>
           <Descriptions.Item label="Mobile">{vendor.mobile || '-'}</Descriptions.Item>

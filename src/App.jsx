@@ -32,6 +32,8 @@ import EstimateDetailPage from './pages/estimates/EstimateDetailPage'
 
 // Invoices
 import CreditNoteFormPage from './pages/invoices/CreditNoteFormPage'
+import CreditNoteListPage from './pages/invoices/CreditNoteListPage'      // ✅ NEW
+import CreditNoteDetailPage from './pages/invoices/CreditNoteDetailPage'  // ✅ NEW
 import InvoiceListPage from './pages/invoices/InvoiceListPage'
 import InvoiceFormPage from './pages/invoices/InvoiceFormPage'
 import InvoiceDetailPage from './pages/invoices/InvoiceDetailPage'
@@ -77,13 +79,13 @@ export default function App() {
         <BrowserRouter>
         <Routes>
 
-          {/* ── Public auth routes ── */}
+          {/* Public auth routes */}
           <Route path="/login"           element={<LoginPage />} />
           <Route path="/register"        element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password"  element={<ResetPasswordPage />} />
 
-          {/* ── Protected app routes ── */}
+          {/* Protected app routes */}
           <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
@@ -114,15 +116,19 @@ export default function App() {
             <Route path="estimates/:id"      element={<EstimateDetailPage />} />
 
             {/* Invoices */}
-          <Route path="invoices/credit-note/new" element={<CreditNoteFormPage />} />
-            <Route path="invoices"     element={<InvoiceListPage />} />
-            <Route path="invoices/new" element={<InvoiceFormPage />} />
-            <Route path="invoices/:id" element={<InvoiceDetailPage />} />
+            <Route path="invoices"                  element={<InvoiceListPage />} />
+            <Route path="invoices/new"              element={<InvoiceFormPage />} />
+            <Route path="invoices/:id"              element={<InvoiceDetailPage />} />
+            
+            {/* ✅ Credit Note Routes */}
+            <Route path="invoices/credit-note/new"  element={<CreditNoteFormPage />} />
+            <Route path="invoices/credit-notes"     element={<CreditNoteListPage />} />
+            <Route path="invoices/credit-note/:id"  element={<CreditNoteDetailPage />} />
 
             {/* Vendor Bills */}
             <Route path="vendor-bills"          element={<VendorBillListPage />} />
             <Route path="vendor-bills/new"      element={<VendorBillFormPage />} />
-            <Route path="vendor-bills/:id/edit" element={<VendorBillFormPage />} /> {/* ✅ YE ADD KIA */}
+            <Route path="vendor-bills/:id/edit" element={<VendorBillFormPage />} />
 
             {/* Bank Entries */}
             <Route path="bank-entries"             element={<BankEntryListPage />} />
